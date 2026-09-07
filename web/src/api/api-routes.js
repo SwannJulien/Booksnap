@@ -21,6 +21,11 @@ export const API_ROUTES = {
   DEWEY: '/api/v1/dewey',
   GENRES: '/api/v1/genres',
   HOLDS: '/api/v1/holds',
+  LOGIN: '/api/v1/auth/login',
+  // Handled by Spring Security's logout filter, not by AuthController — the path is the
+  // one declared in SecurityConfig, and changing it here alone answers 404.
+  LOGOUT: '/api/v1/auth/logout',
+  ME: '/api/v1/auth/me',
   PASSWORD: '/api/v1/auth/password',
   USERS: '/api/v1/users',
 };
