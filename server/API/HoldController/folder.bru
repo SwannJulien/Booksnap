@@ -6,3 +6,15 @@ meta {
 auth {
   mode: inherit
 }
+
+docs {
+    POST  /holds   any signed-in user
+    GET   /holds   librarian, admin
+
+  `getHolds` returns the queue for the whole school, hence staff only.
+
+  Know before testing `createHold` as a student: the `userId` in the body is still
+  trusted, so a student can place a hold in somebody else's name. US-009 only made a
+  session mandatory; deriving the user from it is access rules §4.3 and is still open
+  (§7 item 2).
+}

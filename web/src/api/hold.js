@@ -1,4 +1,5 @@
 import { API_BASE_URL, API_ROUTES } from './api-routes.js';
+import { apiFetch } from './http.js';
 
 // Lists holds that are still going somewhere (pending or active), oldest first.
 // status narrows the list: 'pending' (waiting), 'active' (ready for pickup),
@@ -8,7 +9,7 @@ export async function getHolds({ page = 1, size = 10, q = '', status = '' } = {}
   if (q) params.set('q', q);
   if (status) params.set('status', status);
 
-  const response = await fetch(`${API_BASE_URL}${API_ROUTES.HOLDS}?${params}`);
+  const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.HOLDS}?${params}`);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -23,7 +24,7 @@ export async function getHolds({ page = 1, size = 10, q = '', status = '' } = {}
 // Places a hold on a book for a user. The hold is queued (pending) until a copy of the
 // book is returned and reaches the head of the queue.
 export async function createHold(bookId, userId) {
-  const response = await fetch(`${API_BASE_URL}${API_ROUTES.HOLDS}`, {
+  const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.HOLDS}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bookId, userId }),

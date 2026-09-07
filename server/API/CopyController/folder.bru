@@ -6,3 +6,21 @@ meta {
 auth {
   mode: inherit
 }
+
+docs {
+  Roles accepted, per access rules §3:
+
+    GET     /copies/statuses          any signed-in user
+    GET     /copies/{id}              any signed-in user
+    GET     /copies/{id}/qrcode       librarian, admin
+    POST    /copies                   librarian, admin
+    PUT     /copies/{id}              librarian, admin
+    DELETE  /copies/{id}              librarian, admin
+
+  The QR code is a desk tool — it is printed and stuck on the book — which is why the
+  one read in this folder that students are refused is that one.
+
+  Not enforced yet: the librarian's libraries. `updateCopy` accepts a `libraryId` and
+  moves the copy, so today any librarian can move any copy anywhere, including into
+  their own library. That is phase 2 (access rules §4.2).
+}

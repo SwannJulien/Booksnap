@@ -16,6 +16,15 @@ import java.time.LocalDateTime;
 @MappedSuperclass
 @Data
 public abstract class Auditable {
+
+    /**
+     * What {@code created_by} / {@code last_modified_by} hold when no one is signed in:
+     * the admin bootstrap, the overdue scheduler, and anything else running off a request
+     * thread. Since US-009 no external call can reach a write without a session, so this
+     * value now means "Booksnap itself" and never "we could not tell".
+     */
+    public static final String SYSTEM_AUDITOR = "system";
+
     @CreatedBy
     @Column(name = "created_by")
     protected String createdBy;

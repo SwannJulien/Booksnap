@@ -1,4 +1,5 @@
 import { API_BASE_URL, API_ROUTES } from './api-routes.js';
+import { apiFetch } from './http.js';
 
 const DEFAULT_COVER_TYPE = 'image/jpeg';
 
@@ -9,7 +10,7 @@ const DEFAULT_COVER_TYPE = 'image/jpeg';
  * @returns {Promise<{status: number, blob: Blob|null}>}
  */
 export async function getCover(isbn) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}${API_ROUTES.COVERS}/${encodeURIComponent(isbn)}`,
     {
       method: 'GET',
@@ -57,7 +58,7 @@ export async function uploadCover(coverSource, isbn) {
     throw new Error('Invalid cover source type');
   }
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}${API_ROUTES.COVERS}?isbn=${encodeURIComponent(isbn)}`,
     {
       method: 'POST',

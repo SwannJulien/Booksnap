@@ -6,3 +6,17 @@ meta {
 auth {
   mode: inherit
 }
+
+docs {
+  Every endpoint in this folder is librarian or admin. A student signed in gets 403 on
+  all four, including the reads:
+
+    GET   /borrowings              librarian, admin
+    GET   /borrowings/{copyId}     librarian, admin
+    POST  /borrowings              librarian, admin
+    POST  /borrowings/{id}/return  librarian, admin
+
+  `getAllBorrowings` lists the whole school and `getBorrowingByCopyId` names whoever is
+  holding a copy, so neither can be opened to students as it stands. The endpoint a
+  student is supposed to call — "my borrowings" — does not exist yet (access rules §7).
+}

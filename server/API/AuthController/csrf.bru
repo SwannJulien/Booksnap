@@ -1,0 +1,70 @@
+meta {
+  name: csrf
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{vipa}}/api/v1/auth/csrf
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  Run this first, once per Bruno session. It answers 204 and sets the XSRF-TOKEN
+  cookie; the collection-level post-response script (server/API/collection.bru) copies
+  the value into {{csrfToken}}, which every POST / PUT / PATCH / DELETE in this
+  collection sends as the X-XSRF-TOKEN header.
+
+  Since US-006 the server refuses any write arriving without a matching token, whether
+  or not anyone is signed in — the check sits in front of the filter chain, not behind
+  authentication. A write without the header answers:
+
+    403 { "message": "CSRF token missing or invalid" }
+
+  There is nothing special about this endpoint: every response carries the cookie, so
+  any read would prime the variable just as well. It exists so there is one request
+  that can be made before knowing anything, and it needs no session — the token lives
+  in a cookie, not in the session, which is what lets the login request itself be
+  protected.
+
+  Order for a full run: csrf -> login -> whatever -> logout -> csrf.
+
+  Login and logout do not treat the token the same way, and the difference is the one
+  thing worth knowing here:
+
+  - **login** sends two Set-Cookie headers, one clearing the old token and one issuing
+    its replacement. The collection script skips the empty value, captures the new one,
+    and the sequence carries on.
+  - **logout** sends only the deletion. Nothing replaces it, so the script finds no
+    token to capture and {{csrfToken}} keeps the value that just died. The next write
+    answers 403. **Run this request again after every logout.**
+
+  ### When re-running this request does not help
+
+  The server only issues a token to a client that arrives without one; when the cookie
+  is already there it is loaded and reused, and the response carries no Set-Cookie at
+  all. The script therefore updates nothing, and a run that starts with a populated
+  cookie jar and an empty {{csrfToken}} stays broken however many times this request is
+  repeated.
+
+  Bruno gets into that state on its own: the cookie jar is written to disk and survives
+  a restart, while variables set with bru.setVar() do not. Restart Bruno, and the jar
+  still holds a token that no variable matches.
+
+  The fix is to make the next request arrive cookie-less: **clear this collection's
+  cookies**, then run this request. Nothing else does it.
+
+  ### Reading a 403
+
+  The body cannot tell you which half is wrong — a missing cookie, a stale header and
+  an unresolved {{csrfToken}} all answer the same "CSRF token missing or invalid", since
+  RestAccessDeniedHandler answers every CsrfException alike. Bruno's Timeline tab shows
+  what actually went out: you want a Cookie: XSRF-TOKEN and an X-XSRF-TOKEN header
+  carrying the same value.
+}

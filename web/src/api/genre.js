@@ -1,8 +1,9 @@
 import { API_BASE_URL, API_ROUTES } from './api-routes.js';
+import { apiFetch } from './http.js';
 
 export async function searchGenres(query) {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}${API_ROUTES.GENRES}/search?q=${encodeURIComponent(query)}`,
     );
 

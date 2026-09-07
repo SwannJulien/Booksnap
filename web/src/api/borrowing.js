@@ -1,8 +1,9 @@
 import { API_BASE_URL, API_ROUTES } from './api-routes.js';
+import { apiFetch } from './http.js';
 
 // Returns { copyStatus, borrowing | null }, or null when the copy id is unknown.
 export async function getBorrowingByCopyId(copyId) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}${API_ROUTES.BORROWINGS}/${copyId}`,
   );
 
@@ -32,7 +33,7 @@ export async function getBorrowings({
   if (q) params.set('q', q);
   if (status) params.set('status', status);
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}${API_ROUTES.BORROWINGS}?${params}`,
   );
 
@@ -50,7 +51,7 @@ export async function getBorrowings({
 // available, or on_hold when the copy is handed to the next student in the queue.
 // Returns { id, copyId, userId, status, returnedOn, copyStatus, promotedHoldId }.
 export async function returnBorrowing(borrowingId) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}${API_ROUTES.BORROWINGS}/${borrowingId}/return`,
     { method: 'POST' },
   );
@@ -69,7 +70,7 @@ export async function returnBorrowing(borrowingId) {
 }
 
 export async function createBorrowing(copyId, userId) {
-  const response = await fetch(`${API_BASE_URL}${API_ROUTES.BORROWINGS}`, {
+  const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.BORROWINGS}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ copyId, userId }),

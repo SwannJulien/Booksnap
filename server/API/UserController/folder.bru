@@ -6,3 +6,13 @@ meta {
 auth {
   mode: inherit
 }
+
+docs {
+    GET  /users/search   librarian, admin
+
+  This endpoint is why US-009 exists. It returns the name, first name and email of every
+  active user, and until this story it answered without any session at all — the whole
+  school's directory to anyone who knew the URL (access rules §4.4, §7 item 1).
+
+  Worth running as a student once, to see the 403.
+}

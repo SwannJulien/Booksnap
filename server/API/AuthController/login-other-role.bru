@@ -1,0 +1,50 @@
+meta {
+  name: login-other-role
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{vipa}}/api/v1/auth/login
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{otherRoleEmail}}",
+    "password": "{{otherRolePassword}}"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  The same endpoint as `login`, pointed at an account that is not the administrator.
+
+  Since US-009 every request in this collection needs a session, and what the session may
+  do depends on the role it carries. Checking a folder means running it three times — as
+  `admin` through `login`, then as `librarian` and as `user` through this one — and that
+  is what this request exists for: switch {{otherRoleEmail}} and {{otherRolePassword}} in
+  the Localhost environment instead of editing a tracked file.
+
+  Bruno holds one cookie jar per host, so signing in here replaces the session the
+  previous login opened rather than adding to it. Run `logout` between two roles if you
+  want the switch to be unambiguous; run `csrf` after either one, since both replace the
+  token.
+
+  The account needs a row in `auth_identity` with a `local` password hash, and the dev
+  fixtures create none — see the notes in `login`. Both the address and the password come
+  from the environment: a student's real address has no place in the repository.
+
+  What the answer tells you is the role: the 200 body carries it, and it is the value the
+  matrix in the folder docs is read against.
+}

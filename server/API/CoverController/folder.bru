@@ -6,3 +6,12 @@ meta {
 auth {
   mode: inherit
 }
+
+docs {
+    GET     /covers/{isbn}   any signed-in user
+    POST    /covers          librarian, admin
+    DELETE  /covers/{isbn}   librarian, admin
+
+  The read is open to everyone signed in on purpose: it is what fills the thumbnails in
+  the catalogue, and closing it would blank every cover in the app.
+}

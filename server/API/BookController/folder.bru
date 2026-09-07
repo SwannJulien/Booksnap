@@ -6,3 +6,19 @@ meta {
 auth {
   mode: inherit
 }
+
+docs {
+  Roles accepted, per access rules §3:
+
+    GET     /books, /books/search, /books/{id}      any signed-in user
+    GET     /books/{id}/copies, /books/key-stages   any signed-in user
+    POST    /books                                  librarian, admin
+    PUT     /books/{id}                             librarian, admin
+    DELETE  /books/{id}                             admin only
+
+  `deleteBook` is the one line of this folder a librarian is refused. A book record is
+  shared by every library and its copies cascade with it, so one deletion can empty
+  another library's shelves — no per-library scope could make it safe (access rules
+  §4.1). A librarian sending it gets 403; an administrator gets 204, or 409 when a copy
+  has ever been borrowed.
+}

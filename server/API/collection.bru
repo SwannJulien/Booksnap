@@ -1,0 +1,76 @@
+docs {
+  # Every request here needs a session
+
+  Since US-009 the API answers 401 to anything sent without one, the four exceptions
+  being `csrf`, `login`, `logout` and the actuator health probe. Nothing in this
+  collection runs on its own any more; the opening move is always:
+
+    AuthController/csrf  ->  AuthController/login
+
+  Bruno keeps the JSESSIONID cookie from then on, so the rest of the collection follows
+  in whatever order you like. A folder that suddenly answers 401 everywhere means the
+  session has gone — an eight-hour idle timeout, a backend restart, or a `logout` —
+  rather than a broken request.
+
+  ## 403 is a different failure from 401
+
+  - **401** — no session, or it has expired. Sign in again.
+  - **403** — signed in, but this role may not do this. Either the endpoint is staff-only
+    and you are signed in as a student, or the write is missing its CSRF token (the body
+    says which).
+
+  Each controller folder documents the roles its endpoints accept. Use
+  `AuthController/login-other-role` to come back as a librarian or a student and check
+  the refusals rather than only the successes — a matrix is only verified from both
+  sides.
+
+  ## What is not enforced yet
+
+  Library scope. A librarian passes or fails on the URL alone, so this collection cannot
+  show a librarian refused on a copy belonging to another library — that is phase 2.
+}
+
+script:pre-request {
+  // Stops a write that is certain to answer 403, and says why.
+  //
+  // The server cannot distinguish the causes for us: a missing cookie, a stale token and
+  // an unresolved {{csrfToken}} all come back as the same "CSRF token missing or
+  // invalid". The one cause detectable from here is the variable never having been set,
+  // which is also the one that does not fix itself — re-running `csrf` is a no-op while
+  // the cookie jar already holds a token (see AuthController/csrf.bru).
+  //
+  // Same method list Spring Security exempts, and for the same reason: reads need no
+  // token, and guarding them would make `csrf` itself unrunnable.
+  const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS', 'TRACE'];
+
+  if (!SAFE_METHODS.includes(req.getMethod().toUpperCase()) && !bru.getVar('csrfToken')) {
+    throw new Error(
+      'csrfToken is empty — this write would answer 403. Clear this collection\'s ' +
+      'cookies, then run `csrf`. Re-running `csrf` alone will not help.',
+    );
+  }
+}
+
+script:post-response {
+  // Keeps {{csrfToken}} in step with the XSRF-TOKEN cookie.
+  //
+  // Bruno stores and replays the cookie on its own, but never copies it into a header,
+  // and a header is the only place the server looks for it on a write. So every response
+  // that carries a new token updates the variable that the POST / PUT / PATCH / DELETE
+  // requests reference.
+  //
+  // It has to run on every response, not once: signing in and signing out both replace
+  // the token, and a capture taken before the login would be dead right after it.
+  const setCookie = res.getHeader('set-cookie');
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie].filter(Boolean);
+
+  const token = cookies
+    .map((cookie) => /(?:^|;\s*)XSRF-TOKEN=([^;]*)/.exec(cookie))
+    .filter(Boolean)
+    .map((match) => decodeURIComponent(match[1]))
+    .filter((value) => value.length > 0)[0];
+
+  if (token) {
+    bru.setVar('csrfToken', token);
+  }
+}

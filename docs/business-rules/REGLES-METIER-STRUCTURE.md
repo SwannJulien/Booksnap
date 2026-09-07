@@ -24,7 +24,8 @@ Documents liés :
 - [5. `copy.status` appartient aux triggers](#5-copystatus-appartient-aux-triggers)
 - [6. Index uniques partiels : les règles invisibles](#6-index-uniques-partiels--les-règles-invisibles)
 - [7. Dérive du schéma réel](#7-dérive-du-schéma-réel)
-- [8. Récapitulatif des cascades](#8-récapitulatif-des-cascades)
+- [8. Les colonnes d'audit ne sont pas des clés étrangères](#8-les-colonnes-daudit-ne-sont-pas-des-clés-étrangères)
+- [9. Récapitulatif des cascades](#9-récapitulatif-des-cascades)
 
 ---
 
@@ -308,7 +309,78 @@ imprécision de modélisation qu'aucun outil ne signalera.
 
 ---
 
-## 8. Récapitulatif des cascades
+## 8. Les colonnes d'audit ne sont pas des clés étrangères
+
+Dix tables portent `created_by`, `created_date`, `last_modified_by`,
+`last_modified_date` — `author`, `book`, `borrowing`, `copy`, `cover`, `genre`,
+`hold`, `library`, `users` et `auth_identity`. Elles sont remplies par
+`AuditingEntityListener`, qui demande l'auteur courant à `AuditorAwareImpl`.
+
+### Ce qui est enregistré : l'adresse email
+
+`auth.getName()` renvoie le `username` du `UserDetails`, et
+`AuthenticatedUser.getUsername()` renvoie l'email. **C'est un choix, pas un effet
+de bord de l'API.**
+
+| Option | Pour | Contre |
+|---|---|---|
+| Email | Lisible directement en base, sans jointure | Change si l'adresse change |
+| Identifiant numérique | Stable définitivement | Illisible sans jointure |
+
+L'email l'emporte parce que ces colonnes servent à **remonter une trace**, le
+plus souvent depuis `psql` au moment où l'on cherche qui a saisi quoi. Un
+identifiant numérique obligerait à une jointure à chaque fois, pour une colonne
+qui n'est consultée que dans ce contexte.
+
+Le prix est assumé : une adresse corrigée laisse les anciennes lignes au nom de
+l'ancienne. **C'est un journal de ce qui était vrai au moment de l'écriture**, pas
+une référence vers un compte.
+
+> **Ne jamais transformer ces colonnes en clé étrangère vers `users`.** Une
+> contrainte les rendrait sensibles à l'état du compte, alors qu'un utilisateur
+> n'est de toute façon jamais supprimé ([§3](#3-supprimer-un-utilisateur)). Et la
+> conversion serait à sens unique : le texte déjà écrit — `system`, `NULL`, ou une
+> adresse dont le compte n'existe plus — ne se convertit pas en `bigint`.
+>
+> Le type est `varchar(255)` partout sauf sur `auth_identity`, en `text` : sans
+> contrainte, c'est sans conséquence, mais la prochaine table auditée devrait
+> trancher plutôt que copier au hasard.
+
+### Les trois valeurs possibles
+
+| Valeur | Origine |
+|---|---|
+| Une adresse email | Une écriture faite par une personne connectée |
+| `system` | Le bootstrap admin, le scheduler de retards — aucune session |
+| `NULL` | Les lignes chargées par `seed.sql` / `covers.sql`, qui écrivent en SQL direct |
+
+Les lignes antérieures à l'authentification (US-005) portent `system` sans que
+cela désigne quoi que ce soit : l'information n'a jamais été enregistrée, et
+aucune reprise n'est possible.
+
+**`anonymousUser` n'est pas dans cette liste, et c'est le seul vrai piège.**
+Spring Security fournit une `Authentication` anonyme dont `isAuthenticated()`
+renvoie `true` : un `AuditorAware` naïf enregistre donc la chaîne
+`"anonymousUser"` — qui ressemble à un compte et n'en est pas un — au lieu de
+retomber sur `system`. `AuditorAwareImpl` écarte explicitement
+`AnonymousAuthenticationToken`, et `AuditorAwareImplTest` le vérifie.
+
+### Les mises à jour en masse contournent tout ce mécanisme
+
+Une requête `@Modifying` est traduite directement en SQL : aucune entité n'est
+chargée, `AuditingEntityListener` ne voit jamais les lignes, et les colonnes
+d'audit gardent leur valeur précédente. `BorrowingRepository.markOverdue` — le
+passage en retard nocturne — est dans ce cas et renseigne donc `last_modified_by`
+et `last_modified_date` lui-même.
+
+Sans cela, la ligne continuerait de désigner le bibliothécaire qui a enregistré
+l'emprunt : **une modification attribuée à quelqu'un qui ne l'a pas faite**, ce
+qui est pire qu'une absence d'attribution. La règle vaut pour toute requête en
+masse ajoutée plus tard sur une table auditée.
+
+---
+
+## 9. Récapitulatif des cascades
 
 | Clé étrangère | Comportement | Effet d'une suppression du parent |
 |---|---|---|

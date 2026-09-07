@@ -1,0 +1,57 @@
+meta {
+  name: login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{vipa}}/api/v1/auth/login
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "admin@admin.com",
+    "password": "{{adminPassword}}"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  Run `csrf` before this one. Since US-006 the login is a write like any other and is
+  refused with 403 without a token — which is the point: it means nobody can be signed
+  in from another site either. Signing in then swaps the token for a fresh one; the
+  collection-level post-response script picks the new one up, so the sequence keeps
+  working without a second trip to `csrf`.
+  
+  Answers 200 with the signed-in user (id, first name, last name, email, role) and
+  sets the JSESSIONID cookie. Bruno keeps that cookie, so login -> me -> logout -> me
+  runs as a sequence.
+  
+  Nothing in this folder works until the account has a local identity, and the dev
+  database has none: auth_identity is empty and seed.sql inserts nothing into it.
+  Seeding is US-007. Until then, create one by hand:
+  
+    htpasswd -bnBC 10 "" 'test-password' | tr -d ':\n'
+  
+    INSERT INTO auth_identity (user_id, provider, password_hash)
+    VALUES ((SELECT id FROM users WHERE email = 'alice.martin@example.com'), 'local', '<hash>');
+  
+  Do not put that hash in seed.sql — a known password committed to the repository
+  outlives the phase it was meant for.
+  
+  Every failure answers the same 401 body, whether the email is unknown, the password
+  wrong, the account inactive, or the local identity missing. That is deliberate: a
+  distinct message would turn this endpoint into a way to enumerate the school's
+  addresses. The cause is in the server log.
+}

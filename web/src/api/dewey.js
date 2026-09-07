@@ -1,8 +1,9 @@
 import { API_BASE_URL, API_ROUTES } from './api-routes.js';
+import { apiFetch } from './http.js';
 
 export async function getDeweyClasses() {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}${API_ROUTES.DEWEY}/classes`,
     );
 
@@ -18,7 +19,7 @@ export async function getDeweyClasses() {
 
 export async function getDeweyDivisions(classCode) {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}${API_ROUTES.DEWEY}/classes/${classCode}/divisions`,
     );
 
@@ -34,7 +35,7 @@ export async function getDeweyDivisions(classCode) {
 
 export async function getDeweyCategories(divisionCode) {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE_URL}${API_ROUTES.DEWEY}/divisions/${divisionCode}/categories`,
     );
 
