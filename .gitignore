@@ -40,8 +40,6 @@ modules.xml
 # Package Files #
 *.rar
 replay_pid*
-.replit
-# Replit config
 Requirements.md
 /_site/
 storybook-static

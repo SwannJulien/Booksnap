@@ -26,12 +26,17 @@ export default defineConfig({
 
   // Development server configuration
   server: {
-    port: 3000,
-    strictPort: false,
+    port: 5000,
+    strictPort: true,
     host: true, // Listen on all interfaces (0.0.0.0)
+    allowedHosts: true,
 
     // API proxy to avoid CORS in development
     proxy: {
+      '/actuator/health': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
