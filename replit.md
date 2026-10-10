@@ -52,17 +52,19 @@ The VM is intentional: it keeps the in-memory sign-in sessions and the nightly
 overdue-loan scheduler running in one process. Restarting the VM still signs
 users out.
 
-The existing public deployment returned 404 after its old build command looked
-for a root `package.json`. The Booksnap workspace preview works separately;
-the production build and VM run commands are now configured for the next
-publish.
+The previous published build looked for a root `package.json` and failed before
+building the app. A minimal root npm manifest now lets Replit's package-install
+step complete; actual web dependencies remain in `web/`. The deployment target
+is configured as an always-on VM for the next publish.
 
-Replit's production database does not exist until Publish provisions it. On
-the first publish, use the Publish data-copy option to bring the development
-database's Dewey reference rows and initial administrator into the empty
-production database. The development database is freshly set up and has no
-sample library fixtures. Never overwrite production data with development
-data again after the production database has live data.
+The development database has the schema, Dewey reference data and initial
+administrator, but no books, copies, or loans. The repository includes optional
+fictional development fixtures in `server/sql/seed.sql`; they are not loaded
+automatically. The production database currently has no Booksnap tables because
+the published build failed before schema application. On the next successful
+publish, Replit applies the schema diff. Use its data-copy option only if you
+intend to copy the current development rows; never overwrite production data
+from development after production contains live records.
 
 ## Checks
 

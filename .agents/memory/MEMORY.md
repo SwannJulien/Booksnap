@@ -1,1 +1,2 @@
 - [Package mirror gaps](package-mirror-gaps.md) — If a locked npm tarball is missing, update or remove the stale parent dependency; never bypass the package firewall.
+- [Publish target sync](publish-target-sync.md) — Keep `.replit`'s deployment target aligned with `deployConfig`; success from one alone may leave the old target active.
