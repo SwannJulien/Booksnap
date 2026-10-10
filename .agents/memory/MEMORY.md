@@ -1,0 +1,1 @@
+- [Package mirror gaps](package-mirror-gaps.md) — If a locked npm tarball is missing, update or remove the stale parent dependency; never bypass the package firewall.

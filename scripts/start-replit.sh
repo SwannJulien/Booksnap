@@ -3,8 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [[ ! -d web/node_modules ]]; then
-  echo "Frontend dependencies are missing. Run npm ci --prefix web first." >&2
-  exit 1
+  npm ci --prefix web
 fi
 
 cleanup() {

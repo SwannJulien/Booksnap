@@ -1,8 +1,8 @@
-modules = ["java-graalvm22.3", "bash", "postgresql-16", "nodejs-24"]
+modules = ["bash", "nodejs-24", "postgresql-16"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["jdk17"]
+packages = ["jdk17", "maven", "vim-full"]
 
 [agent]
 expertMode = true
@@ -30,3 +30,11 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080

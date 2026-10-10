@@ -11,7 +11,7 @@ Click **Run** to start the `Booksnap` workflow, which runs
 `0.0.0.0:5000`. Vite proxies `/api` and `/actuator/health` to the backend.
 Leave `VITE_API_BASE_URL` unset so browser requests stay same-origin.
 
-Runtimes: Node.js 22, Java 17 (`jdk17`), and Maven from the Java tools module.
+Runtimes: Node.js 24 and Java 17 (`jdk17`); Maven is available in the Java toolchain.
 To reinstall frontend dependencies, run `npm ci --prefix web`.
 The backend resolves Maven dependencies on its first start.
 
@@ -42,6 +42,6 @@ HTTPS. Backend restarts invalidate existing sessions.
 ## Checks
 
 - Frontend production build: `npm run build --prefix web`
-- Backend tests: `cd server && mvn test`
+- Backend tests: `cd server && mvn test` (requires PostgreSQL per `server/README.md`)
 - Health endpoint: `/actuator/health` through the preview
 - Without a session, protected API endpoints should return HTTP 401.
