@@ -39,9 +39,35 @@ default); never disable security to make setup easier.
 Sessions use secure, HTTP-only cookies because Replit preview is served over
 HTTPS. Backend restarts invalidate existing sessions.
 
+## Publish to production
+
+The Booksnap VM deployment builds from both project subdirectories with
+`bash scripts/build-production.sh`, then runs `bash scripts/start-production.sh`.
+It packages Spring Boot and the built Vite frontend; Vite serves the built site
+on port 5000 and proxies `/api` to the private backend on port 8080.
+The production Spring profile reads the managed production `PG*` variables,
+requires Hibernate schema validation, uses secure session cookies, and leaves
+production schema changes to Replit Publish instead of running Flyway there.
+The VM is intentional: it keeps the in-memory sign-in sessions and the nightly
+overdue-loan scheduler running in one process. Restarting the VM still signs
+users out.
+
+The existing public deployment returned 404 after its old build command looked
+for a root `package.json`. The Booksnap workspace preview works separately;
+the production build and VM run commands are now configured for the next
+publish.
+
+Replit's production database does not exist until Publish provisions it. On
+the first publish, use the Publish data-copy option to bring the development
+database's Dewey reference rows and initial administrator into the empty
+production database. The development database is freshly set up and has no
+sample library fixtures. Never overwrite production data with development
+data again after the production database has live data.
+
 ## Checks
 
 - Frontend production build: `npm run build --prefix web`
+- Production bundle and backend package: `bash scripts/build-production.sh`
 - Backend tests: `cd server && mvn test` (requires PostgreSQL per `server/README.md`)
 - Health endpoint: `/actuator/health` through the preview
 - Without a session, protected API endpoints should return HTTP 401.

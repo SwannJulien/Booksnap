@@ -1,5 +1,18 @@
 import { defineConfig } from 'vite';
 
+const apiTarget = process.env.BOOKSNAP_API_ORIGIN || 'http://127.0.0.1:8080';
+const apiProxy = {
+  '/actuator/health': {
+    target: apiTarget,
+    changeOrigin: true,
+  },
+  '/api': {
+    target: apiTarget,
+    changeOrigin: true,
+    secure: false,
+  },
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
   // Root entry point
@@ -31,25 +44,17 @@ export default defineConfig({
     host: true, // Listen on all interfaces (0.0.0.0)
     allowedHosts: true,
 
-    // API proxy to avoid CORS in development
-    proxy: {
-      '/actuator/health': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    // Same-origin API proxy for development and the production preview server.
+    proxy: apiProxy,
   },
 
   // Preview server (to test the local build)
   preview: {
-    port: 4173,
-    strictPort: false,
+    port: 5000,
+    strictPort: true,
     host: true,
+    allowedHosts: true,
+    proxy: apiProxy,
   },
 
   // Dependency optimization
