@@ -93,9 +93,15 @@ docker compose up --build
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Frontend** | http://localhost:3000 | Interface utilisateur |
+| **Frontend (stack Docker)** | http://localhost:3000 | Conteneur nginx, `${FRONTEND_PORT:-3000}` |
+| **Frontend (`npm run dev`)** | http://localhost:5000 | Serveur de dév Vite, `strictPort: true` |
 | **Backend API** | http://localhost:8080 | API REST Spring Boot |
 | **pgAdmin** | http://localhost:5050 | Interface base de données |
+
+> Les deux frontends n'écoutent **pas** sur le même port. Le conteneur nginx de
+> `docker compose up` est publié sur `3000` ; le serveur de dév Vite, lui, est fixé sur
+> `5000` (contrainte de la webview Replit, voir `.replit`). Au quotidien seule la base
+> vient de compose : c'est donc `5000` qu'on ouvre.
 
 ### Connexion à la base de données via pgAdmin
 
@@ -187,7 +193,7 @@ docker logs --tail 30 booksnap-pgadmin
 │   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐      │
 │   │  PostgreSQL │     │   Backend   │     │  Frontend   │      │
 │   │   (Docker)  │◄────│   (Local)   │◄────│   (Local)   │      │
-│   │   :5432     │     │   :8080     │     │   :3000     │      │
+│   │   :5432     │     │   :8080     │     │   :5000     │      │
 │   └─────────────┘     └─────────────┘     └─────────────┘      │
 │         ▲                   ▲                   ▲               │
 │         │                   │                   │               │
@@ -228,7 +234,7 @@ npm install
 # Lancer avec Hot Reload
 npm run dev
 
-# Ouvrir http://localhost:3000
+# Ouvrir http://localhost:5000
 ```
 
 #### Avantages de cette approche
@@ -544,7 +550,7 @@ args:                                 ARG VITE_API_BASE_URL
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     DÉVELOPPEMENT                            │
-│   npm run dev  →  Vite Dev Server (HMR, localhost:3000)     │
+│   npm run dev  →  Vite Dev Server (HMR, localhost:5000)     │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -678,7 +684,7 @@ npm install
 
 # Développement (Hot Reload)
 npm run dev
-# → http://localhost:3000
+# → http://localhost:5000
 
 # Build production
 npm run build
@@ -686,7 +692,7 @@ npm run build
 
 # Prévisualiser le build
 npm run preview
-# → http://localhost:4173
+# → http://localhost:5000
 
 # Linter
 npm run lint

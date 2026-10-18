@@ -9,15 +9,12 @@ export const bookTableBksStyles = css`
     table-layout: fixed;
     margin: 2rem 0;
     width: 100%;
-    border-radius: var(--border-radius-default);
     border-collapse: separate;
-    overflow: hidden;
     border-spacing: 0;
   }
 
   thead {
     background-color: #2d3748;
-    border-radius: var(--border-radius-default);
     text-transform: uppercase;
     text-align: left;
     color: var(--clr-text-muted);
@@ -26,9 +23,16 @@ export const bookTableBksStyles = css`
     letter-spacing: 1px;
   }
 
+  thead tr:first-child th:first-child {
+    border-radius: var(--border-radius-default) 0 0 0;
+  }
+
+  thead tr:first-child th:last-child {
+    border-radius: 0 var(--border-radius-default) 0 0;
+  }
+
   tbody {
     background-color: var(--clr-card-gray);
-    border-radius: var(--border-radius-default);
   }
 
   tbody tr td {
@@ -82,14 +86,26 @@ export const bookTableBksStyles = css`
     width: 10%;
   }
 
+  td:nth-child(7) {
+    overflow: visible;
+    white-space: normal;
+  }
+
   tfoot {
     background-color: var(--clr-card-gray);
-    border-radius: var(--border-radius-default);
   }
 
   tfoot td {
     padding: 1.2rem;
     border-top: 3px solid var(--clr-main-dark);
+  }
+
+  tfoot tr:last-child td:first-child {
+    border-radius: 0 0 0 var(--border-radius-default);
+  }
+
+  tfoot tr:last-child td:last-child {
+    border-radius: 0 0 var(--border-radius-default) 0;
   }
 
   .footer-content {
@@ -308,6 +324,9 @@ export const bookTableBksStyles = css`
 
   .expanded-row td {
     padding: 1rem 1.2rem;
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
   }
 
   .expanded-content {
