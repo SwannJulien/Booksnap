@@ -53,36 +53,57 @@ hold.copy_id       → copy(id)     (aucune action → NO ACTION)
 
 ### Ce que cela implique
 
-**Une copie qui a déjà été empruntée ne peut pas être supprimée.** `NO ACTION`
-bloque la suppression tant qu'une ligne `borrowing` ou `hold` la référence — y
-compris un emprunt `returned` vieux de trois ans. C'est une protection de
-l'historique, et elle est souhaitable.
+**La suppression est logique, et ces clés étrangères ne gênent plus personne.**
+Depuis `V9` (US-01), `book` et `copy` portent une colonne `deleted_at`. Supprimer
+une copie ou un livre, c'est horodater cette colonne : plus aucun `deleteById`
+n'est appelé sur ces deux tables, donc plus aucune ligne n'est détruite, donc les
+`NO ACTION` ne s'opposent à rien et la `CASCADE` de `copy.book_id` ne se déclenche
+jamais. L'historique de prêt des élèves est conservé intégralement.
 
-**Mais elle n'est pas gérée par le code.** `CopyServiceImpl.deleteCopyById:113`
-appelle `deleteById` sans aucune vérification :
+**`NULL` veut dire vivant.** Toute lecture exposée par l'API filtre
+explicitement `deleted_at IS NULL` — liste et recherche de livres, lectures
+unitaires, comptes de copies, contrôles d'unicité. Le filtrage est écrit requête
+par requête et non déclaré une fois pour toutes sur les entités
+(`@SQLRestriction`), parce que les écrans d'archive doivent lire exactement les
+lignes que ce filtre exclut. **Conséquence : une requête qui oublie le filtre
+n'échoue nulle part, elle fait simplement réapparaître un livre supprimé.**
 
-```java
-public void deleteCopyById(Long copyId) {
-    if (copyRepository.existsById(copyId)){
-        copyRepository.deleteById(copyId);   // ← violation de FK si la copie a un historique
-    } else {
-        throw new CopyNotFoundException(copyId);
-    }
-}
-```
+**Règle : un emprunt ou une réservation *en cours* bloque la suppression ; son
+historique ne la bloque pas.** « En cours » vaut quatre statuts et seulement
+quatre — `borrowing` en `borrowed` ou `overdue`, `hold` en `pending` ou `active`
+(les constantes `Status.ACTIVE` des deux énumérations). Un emprunt `returned`
+vieux de trois ans, une réservation `expired` ou `fulfilled` ne s'opposent plus à
+rien. Le refus est un **409** explicite, porté par
+`CopyHasActiveLoanOrHoldException` et `BookHasActiveLoanOrHoldException`.
 
-L'appelant reçoit une `DataIntegrityViolationException` brute, pas un **409**
-explicite. **Règle : la suppression d'une copie doit d'abord vérifier
-l'existence d'un `borrowing` ou d'un `hold` et renvoyer un 409 explicite.**
+Une réservation `pending` n'a pas de copie attachée : elle bloque le **livre** et
+aucune copie en particulier.
 
-**`DELETE /books/{id}` hérite du même mur.** Supprimer une notice tente de
-supprimer ses copies en cascade ; si l'une d'elles a un historique, la cascade
-échoue et **toute la suppression échoue**. L'endpoint est donc déjà inopérant
-pour tout livre ayant été emprunté au moins une fois.
+**Supprimer un livre supprime logiquement toutes ses copies**, dans la même
+transaction. Laisser des copies vivantes sous un livre supprimé donnerait des
+copies inatteignables par le catalogue mais toujours empruntables.
 
-**Conséquence d'autorisation :** parce que la cascade traverse toutes les
-bibliothèques, `DELETE /books/{id}` est réservé à l'`ADMIN`
-([règles accès §4.1](REGLES-METIER-ACCES.md)).
+**Le contrôle et l'écriture partagent une transaction**, et ce n'est pas
+décoratif : horodater `deleted_at` ne viole aucune clé étrangère, donc un emprunt
+créé entre les deux donnerait une copie supprimée **et** empruntée sans la moindre
+erreur. L'autre moitié de cette fenêtre est la lecture filtrée de la création
+d'emprunt, qui refuse une copie supprimée.
+
+**`deleted_at` et `copy.status` sont deux axes indépendants.** Une copie supprimée
+reste `available` et `Status.isBorrowable()` répond toujours `true` : `status`
+appartient aux triggers ([§5](#5-copystatus-appartient-aux-triggers)),
+et un retour d'emprunt écraserait toute valeur écrite ici. Ce qui refuse l'emprunt
+d'une copie supprimée est la lecture filtrée, jamais le statut.
+
+**La couverture n'est pas supprimée.** La notice n'étant pas détruite, elle reste
+consultable depuis l'archive ; une image orpheline coûte moins qu'une vignette
+manquante.
+
+**Conséquence d'autorisation :** `DELETE /books/{id}` **et** `DELETE /copies/{id}`
+sont réservés à l'`ADMIN` ([règles accès §4.1](REGLES-METIER-ACCES.md)). La raison
+n'est plus la cascade : c'est que plus rien ne protège par accident un emprunt
+ancien, donc retirer une notice ou une copie du fonds devient une décision sur
+l'archive.
 
 ---
 
@@ -397,3 +418,9 @@ masse ajoutée plus tard sur une table auditée.
 | `notification.borrowing_id → borrowing` | `NO ACTION` | 🛡️ Bloque |
 
 🛡️ protège l'historique · ⚠️ détruit sans avertissement
+
+> Ce tableau décrit ce que feraient ces clés **si** le parent était physiquement
+> supprimé. Pour `book` et `copy`, ce cas ne se produit plus : la suppression y est
+> logique depuis `V9` ([§2](#2-supprimer-un-livre-ou-une-copie)), aucun `DELETE` SQL
+> n'est émis, donc ni la `CASCADE` de `copy.book_id` ni les `NO ACTION` qui pointent
+> vers `copy` n'entrent en jeu. Les autres lignes restent d'actualité.
