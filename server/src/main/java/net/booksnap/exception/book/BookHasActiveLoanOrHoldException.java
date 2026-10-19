@@ -3,6 +3,8 @@ package net.booksnap.exception.book;
 import net.booksnap.domain.book.Book;
 import net.booksnap.domain.borrowing.Borrowing;
 import net.booksnap.domain.hold.Hold;
+import net.booksnap.exception.common.BlockingBorrowing;
+import net.booksnap.exception.common.BlockingHold;
 import net.booksnap.exception.common.StudentNames;
 
 import java.util.List;
@@ -10,8 +12,22 @@ import java.util.stream.Collectors;
 
 public class BookHasActiveLoanOrHoldException extends RuntimeException {
 
+    private final List<BlockingBorrowing> activeBorrowings;
+    private final List<BlockingHold> activeHolds;
+
     public BookHasActiveLoanOrHoldException(Book book, List<Borrowing> loans, List<Hold> holds) {
         super(buildMessage(book, loans, holds));
+        // Converted here, inside the deleting transaction: the handler runs after the rollback, on detached entities
+        this.activeBorrowings = loans.stream().map(BlockingBorrowing::from).toList();
+        this.activeHolds = holds.stream().map(BlockingHold::from).toList();
+    }
+
+    public List<BlockingBorrowing> getActiveBorrowings() {
+        return activeBorrowings;
+    }
+
+    public List<BlockingHold> getActiveHolds() {
+        return activeHolds;
     }
 
     private static String buildMessage(Book book, List<Borrowing> loans, List<Hold> holds) {

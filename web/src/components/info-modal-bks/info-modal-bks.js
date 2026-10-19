@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { infoModalBksStyles } from './info-modal-bks-styles.js';
 import '../modal-bks/modal-bks.js';
 import '../button-bks/button-bks.js';
@@ -30,7 +30,8 @@ export class InfoModalBks extends LitElement {
             </svg>
           </div>
           <h2>${this.heading}</h2>
-          <p>${this.message}</p>
+          ${this.message ? html`<p>${this.message}</p>` : nothing}
+          <slot></slot>
           <div class="button-container">
             <button-bks
               variant="secondary"

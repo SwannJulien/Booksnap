@@ -19,10 +19,10 @@ import java.util.Optional;
 public interface BorrowingRepository extends JpaRepository<Borrowing, Long> {
     Optional<Borrowing> findFirstByCopyIdAndStatusIn(Long copyId, Collection<Status> statuses);
 
-    @EntityGraph(attributePaths = "user")
+    @EntityGraph(attributePaths = {"user", "copy"})
     List<Borrowing> findByCopyIdAndStatusInOrderByEndDateAsc(Long copyId, Collection<Status> statuses);
 
-    @EntityGraph(attributePaths = "user")
+    @EntityGraph(attributePaths = {"user", "copy"})
     List<Borrowing> findByCopyBookIdAndStatusInOrderByEndDateAsc(Long bookId, Collection<Status> statuses);
 
     @Query("""

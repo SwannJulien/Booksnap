@@ -73,6 +73,8 @@ export async function deleteBook(bookId) {
       errorData.message || `Failed to delete book: ${response.status}`,
     );
     error.status = response.status;
+    error.activeBorrowings = errorData.activeBorrowings ?? [];
+    error.activeHolds = errorData.activeHolds ?? [];
     throw error;
   }
 

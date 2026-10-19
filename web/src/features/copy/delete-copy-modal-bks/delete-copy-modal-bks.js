@@ -76,6 +76,8 @@ export class DeleteCopyModalBks extends LitElement {
             message:
               err.message ||
               'This copy could not be deleted. Please try again later.',
+            activeBorrowings: err.activeBorrowings ?? [],
+            activeHolds: err.activeHolds ?? [],
           },
         }),
       );

@@ -75,6 +75,8 @@ export class DeleteBookModalBks extends LitElement {
             message:
               err.message ||
               'This book could not be deleted. Please try again later.',
+            activeBorrowings: err.activeBorrowings ?? [],
+            activeHolds: err.activeHolds ?? [],
           },
         }),
       );

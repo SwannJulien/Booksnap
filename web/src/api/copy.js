@@ -80,6 +80,8 @@ export async function deleteCopy(copyId) {
       errorData.message || `Failed to delete copy: ${response.status}`,
     );
     error.status = response.status;
+    error.activeBorrowings = errorData.activeBorrowings ?? [];
+    error.activeHolds = errorData.activeHolds ?? [];
     throw error;
   }
 

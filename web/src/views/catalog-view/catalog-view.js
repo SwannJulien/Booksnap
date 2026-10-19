@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { Task } from '@lit/task';
 import { catalogView } from './catalog-view-styles.js';
 import { sharedStyles } from '../../shared-styles.js';
@@ -21,6 +21,7 @@ import '../../features/borrowing/loan-modal-bks/loan-modal-bks.js';
 import '../../features/borrowing/return-modal-bks/return-modal-bks.js';
 import '../../features/hold/hold-modal-bks/hold-modal-bks.js';
 import '../../components/info-modal-bks/info-modal-bks.js';
+import '../../features/book/deletion-blockers-bks/deletion-blockers-bks.js';
 
 export class CatalogView extends LitElement {
   static styles = [catalogView, sharedStyles];
@@ -87,13 +88,24 @@ export class CatalogView extends LitElement {
   }
 
   get _deleteRefusalTpl() {
+    const { activeBorrowings = [], activeHolds = [] } =
+      this.deleteRefusal ?? {};
+    const hasBlockers = activeBorrowings.length > 0 || activeHolds.length > 0;
+
     return html`
       <info-modal-bks
         ?open=${!!this.deleteRefusal}
         .heading=${this.deleteRefusal?.heading ?? ''}
-        .message=${this.deleteRefusal?.message ?? ''}
+        .message=${hasBlockers ? '' : (this.deleteRefusal?.message ?? '')}
         @modal-close=${this._handleDeleteRefusalClose}
-      ></info-modal-bks>
+      >
+        ${hasBlockers
+          ? html`<deletion-blockers-bks
+              .activeBorrowings=${activeBorrowings}
+              .activeHolds=${activeHolds}
+            ></deletion-blockers-bks>`
+          : nothing}
+      </info-modal-bks>
     `;
   }
 
@@ -104,6 +116,8 @@ export class CatalogView extends LitElement {
     this.deleteRefusal = {
       heading: 'Deletion refused',
       message: e.detail.message,
+      activeBorrowings: e.detail.activeBorrowings,
+      activeHolds: e.detail.activeHolds,
     };
   }
 

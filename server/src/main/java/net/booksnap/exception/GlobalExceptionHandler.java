@@ -202,23 +202,27 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(CopyHasActiveLoanOrHoldException.class)
-    public ResponseEntity<ApiError> handleCopyHasActiveLoanOrHold(CopyHasActiveLoanOrHoldException ex, HttpServletRequest request) {
-        ApiError error = new ApiError(
+    public ResponseEntity<DeletionBlockedError> handleCopyHasActiveLoanOrHold(CopyHasActiveLoanOrHoldException ex, HttpServletRequest request) {
+        DeletionBlockedError error = new DeletionBlockedError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
-                request.getRequestURI()
+                request.getRequestURI(),
+                ex.getActiveBorrowings(),
+                ex.getActiveHolds()
         );
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(BookHasActiveLoanOrHoldException.class)
-    public ResponseEntity<ApiError> handleBookHasActiveLoanOrHold(BookHasActiveLoanOrHoldException ex, HttpServletRequest request) {
-        ApiError error = new ApiError(
+    public ResponseEntity<DeletionBlockedError> handleBookHasActiveLoanOrHold(BookHasActiveLoanOrHoldException ex, HttpServletRequest request) {
+        DeletionBlockedError error = new DeletionBlockedError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
-                request.getRequestURI()
+                request.getRequestURI(),
+                ex.getActiveBorrowings(),
+                ex.getActiveHolds()
         );
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }

@@ -45,9 +45,9 @@ public interface HoldRepository extends JpaRepository<Hold, Long> {
     // Size of the pending queue for a book, used to report a new hold's position
     long countByBookIdAndStatus(Long bookId, Status status);
 
-    @EntityGraph(attributePaths = "user")
+    @EntityGraph(attributePaths = {"user", "copy"})
     List<Hold> findByCopyIdAndStatusInOrderByCreatedDateAsc(Long copyId, Collection<Status> statuses);
 
-    @EntityGraph(attributePaths = "user")
+    @EntityGraph(attributePaths = {"user", "copy"})
     List<Hold> findByBookIdAndStatusInOrderByCreatedDateAsc(Long bookId, Collection<Status> statuses);
 }
