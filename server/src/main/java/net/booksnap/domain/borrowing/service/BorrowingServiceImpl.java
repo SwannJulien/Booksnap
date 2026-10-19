@@ -59,7 +59,9 @@ public class BorrowingServiceImpl implements BorrowingService {
 
     @Transactional
     public CreateBorrowingResponse createBorrowing(CreateBorrowingRequest createBorrowingRequest) {
-        Copy copy = copyRepository.findById(createBorrowingRequest.copyId())
+        // The filtered read is the only thing refusing a deleted copy: its status stays
+        // 'available'
+        Copy copy = copyRepository.findByIdAndDeletedAtIsNull(createBorrowingRequest.copyId())
                 .orElseThrow(() -> new CopyNotFoundException(createBorrowingRequest.copyId()));
 
         User user = userRepository.findById(createBorrowingRequest.userId())
@@ -187,7 +189,7 @@ public class BorrowingServiceImpl implements BorrowingService {
     // Read-only transaction: the copy status and the hold read against it have to agree
     @Transactional(readOnly = true)
     public GetBorrowingResponse getActiveBorrowingByCopyId(Long copyId) {
-        Copy copy = copyRepository.findById(copyId)
+        Copy copy = copyRepository.findByIdAndDeletedAtIsNull(copyId)
                 .orElseThrow(() -> new CopyNotFoundException(copyId));
 
         GetBorrowingResponse.BorrowingDetails borrowingDetails = borrowingRepository

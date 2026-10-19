@@ -69,6 +69,10 @@ export function isAuthenticated() {
   return authenticatedUser !== null;
 }
 
+export function isAdmin() {
+  return authenticatedUser?.role === 'admin';
+}
+
 /**
  * Records the account a successful sign-in returned.
  *

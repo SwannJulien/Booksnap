@@ -33,10 +33,6 @@ export class DeleteBookModalBks extends LitElement {
             <span class="book-title-highlight">'${this.book?.title}'</span>?
           </p>
           <p>This action cannot be undone.</p>
-          <p class="delete-warning">
-            All ${this.book?.countCopies?.totalNumberOfCopies ?? 0} associated
-            copies will be permanently removed from the library system.
-          </p>
           <div class="button-container">
             <button-bks
               variant="danger"
@@ -64,14 +60,30 @@ export class DeleteBookModalBks extends LitElement {
   async _handleConfirmDelete() {
     try {
       await deleteBook(this.book.id);
+    } catch (err) {
+      // A 403 already raised the shell's banner (ACCESS_DENIED_EVENT)
+      if (err.status === 403) {
+        this._handleClose();
+        return;
+      }
 
       this.dispatchEvent(
-        new CustomEvent('book-deleted', { bubbles: true, composed: true }),
+        new CustomEvent('delete-refused', {
+          bubbles: true,
+          composed: true,
+          detail: {
+            message:
+              err.message ||
+              'This book could not be deleted. Please try again later.',
+          },
+        }),
       );
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to delete book:', err);
+      return;
     }
+
+    this.dispatchEvent(
+      new CustomEvent('book-deleted', { bubbles: true, composed: true }),
+    );
   }
 }
 

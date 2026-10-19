@@ -67,19 +67,23 @@ export async function updateCopy(copyId, payload) {
 }
 
 export async function deleteCopy(copyId) {
-  try {
-    const response = await apiFetch(
-      `${API_BASE_URL}${API_ROUTES.COPIES}/${copyId}`,
-      {
-        method: 'DELETE',
-      },
-    );
+  const response = await apiFetch(
+    `${API_BASE_URL}${API_ROUTES.COPIES}/${copyId}`,
+    {
+      method: 'DELETE',
+    },
+  );
 
-    const { status } = response;
-    return status;
-  } catch (error) {
-    throw new Error(`Failed to delete copy: ${error}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to delete copy: ${response.status}`,
+    );
+    error.status = response.status;
+    throw error;
   }
+
+  return response.status;
 }
 
 export async function getCopyQrCode(copyId) {

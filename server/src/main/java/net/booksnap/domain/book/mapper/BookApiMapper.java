@@ -43,6 +43,7 @@ public abstract class BookApiMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdDate", ignore = true)
     @Mapping(target = "lastModifiedDate", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "genres", ignore = true)
     @Mapping(target = "authors", ignore = true)
     @Mapping(target = "deweyCategory", ignore = true)
@@ -105,7 +106,7 @@ public abstract class BookApiMapper {
         if (bookId == null) {
             return 0;
         }
-        return copyRepository.countByBookId(bookId);
+        return copyRepository.countByBookIdAndDeletedAtIsNull(bookId);
     }
 
     @Named("countAvailableCopies")
@@ -113,7 +114,7 @@ public abstract class BookApiMapper {
         if (bookId == null) {
             return 0;
         }
-        return copyRepository.countByBookIdAndStatus(bookId, Status.available);
+        return copyRepository.countByBookIdAndStatusAndDeletedAtIsNull(bookId, Status.available);
     }
 
     protected Set<String> mapGenresToSet(Set<Genre> genres) {

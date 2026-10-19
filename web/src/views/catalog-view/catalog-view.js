@@ -20,6 +20,7 @@ import '../../features/book/create-book-bks/create-book-bks.js';
 import '../../features/borrowing/loan-modal-bks/loan-modal-bks.js';
 import '../../features/borrowing/return-modal-bks/return-modal-bks.js';
 import '../../features/hold/hold-modal-bks/hold-modal-bks.js';
+import '../../components/info-modal-bks/info-modal-bks.js';
 
 export class CatalogView extends LitElement {
   static styles = [catalogView, sharedStyles];
@@ -37,6 +38,7 @@ export class CatalogView extends LitElement {
     bookToHold: { type: Object, state: true },
     showCreateModal: { type: Boolean, state: true },
     updateError: { type: String, state: true },
+    deleteRefusal: { type: Object, state: true },
   };
 
   _search = new SearchController(this, {
@@ -62,6 +64,7 @@ export class CatalogView extends LitElement {
     this.bookToHold = null;
     this.showCreateModal = false;
     this.updateError = '';
+    this.deleteRefusal = null;
   }
 
   booksTask = new Task(this, {
@@ -79,8 +82,33 @@ export class CatalogView extends LitElement {
       ${this._deleteModalTpl} ${this._updateModalTpl} ${this._createModalTpl}
       ${this._createBookBksTpl} ${this._qrModalTpl} ${this._updateCopyModalTpl}
       ${this._deleteCopyModalTpl} ${this._loanModalTpl} ${this._returnModalTpl}
-      ${this._holdModalTpl}
+      ${this._holdModalTpl} ${this._deleteRefusalTpl}
     `;
+  }
+
+  get _deleteRefusalTpl() {
+    return html`
+      <info-modal-bks
+        ?open=${!!this.deleteRefusal}
+        .heading=${this.deleteRefusal?.heading ?? ''}
+        .message=${this.deleteRefusal?.message ?? ''}
+        @modal-close=${this._handleDeleteRefusalClose}
+      ></info-modal-bks>
+    `;
+  }
+
+  // Dismiss the confirmation here so only one modal-bks is on screen
+  _handleDeleteRefused(e) {
+    this.bookToDelete = null;
+    this.copyToDelete = null;
+    this.deleteRefusal = {
+      heading: 'Deletion refused',
+      message: e.detail.message,
+    };
+  }
+
+  _handleDeleteRefusalClose() {
+    this.deleteRefusal = null;
   }
 
   get _deleteModalTpl() {
@@ -90,6 +118,7 @@ export class CatalogView extends LitElement {
         .book=${this.bookToDelete}
         @modal-close=${this._handleDeleteModalClose}
         @book-deleted=${this._handleBookDeleted}
+        @delete-refused=${this._handleDeleteRefused}
       ></delete-book-modal-bks>
     `;
   }
@@ -365,12 +394,6 @@ export class CatalogView extends LitElement {
   }
 
   _handleBookDeleted() {
-    // The server drops the cover with the book, so the cached one is gone too
-    const isbn = this.bookToDelete?.isbn13 || this.bookToDelete?.isbn10;
-    if (isbn) {
-      this._covers.invalidate(isbn);
-    }
-
     this.bookToDelete = null;
     this._refreshList();
   }
@@ -446,6 +469,7 @@ export class CatalogView extends LitElement {
         .copy=${this.copyToDelete}
         @modal-close=${this._handleDeleteCopyModalClose}
         @copy-deleted=${this._handleCopyDeleted}
+        @delete-refused=${this._handleDeleteRefused}
       ></delete-copy-modal-bks>
     `;
   }

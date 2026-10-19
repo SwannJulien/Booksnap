@@ -151,8 +151,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/books").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/books").hasAnyRole(LIBRARIAN, ADMIN)
                 .requestMatchers(HttpMethod.PUT, "/api/v1/books/*").hasAnyRole(LIBRARIAN, ADMIN)
-                // Admin only: the copy foreign key cascades, so deleting one shared record
-                // empties the shelves of every library at once (access rules §4.1).
+                // Admin only: a book is shared across libraries, and deletion is logical so
+                // no foreign key protects its history any more (access rules §4.1).
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/books/*").hasRole(ADMIN)
 
                 // --- Copies --------------------------------------------------------------
@@ -165,7 +165,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/copies/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/copies").hasAnyRole(LIBRARIAN, ADMIN)
                 .requestMatchers(HttpMethod.PUT, "/api/v1/copies/*").hasAnyRole(LIBRARIAN, ADMIN)
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/copies/*").hasAnyRole(LIBRARIAN, ADMIN)
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/copies/*").hasRole(ADMIN)
 
                 // --- Borrowings ----------------------------------------------------------
                 // All four are desk operations. There is no "my borrowings" endpoint yet

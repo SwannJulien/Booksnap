@@ -6,10 +6,12 @@ import net.booksnap.exception.auth.InvalidCurrentPasswordException;
 import net.booksnap.exception.auth.NoLocalIdentityException;
 import net.booksnap.exception.auth.PasswordRejectedException;
 import net.booksnap.exception.book.BookAlreadyExistsException;
+import net.booksnap.exception.book.BookHasActiveLoanOrHoldException;
 import net.booksnap.exception.book.BookNotFoundException;
 import net.booksnap.exception.borrowing.BorrowingAlreadyReturnedException;
 import net.booksnap.exception.borrowing.BorrowingNotFoundException;
 import net.booksnap.exception.common.BadRequestException;
+import net.booksnap.exception.copy.CopyHasActiveLoanOrHoldException;
 import net.booksnap.exception.copy.CopyNotAvailableException;
 import net.booksnap.exception.copy.CopyNotFoundException;
 import net.booksnap.exception.cover.CoverNotFoundException;
@@ -190,6 +192,28 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(CopyNotAvailableException.class)
     public ResponseEntity<ApiError> handleCopyNotAvailable(CopyNotAvailableException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(CopyHasActiveLoanOrHoldException.class)
+    public ResponseEntity<ApiError> handleCopyHasActiveLoanOrHold(CopyHasActiveLoanOrHoldException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(BookHasActiveLoanOrHoldException.class)
+    public ResponseEntity<ApiError> handleBookHasActiveLoanOrHold(BookHasActiveLoanOrHoldException ex, HttpServletRequest request) {
         ApiError error = new ApiError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),

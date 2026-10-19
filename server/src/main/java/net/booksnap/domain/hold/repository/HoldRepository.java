@@ -4,6 +4,7 @@ import net.booksnap.domain.hold.Hold;
 import net.booksnap.domain.hold.Status;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,4 +44,10 @@ public interface HoldRepository extends JpaRepository<Hold, Long> {
 
     // Size of the pending queue for a book, used to report a new hold's position
     long countByBookIdAndStatus(Long bookId, Status status);
+
+    @EntityGraph(attributePaths = "user")
+    List<Hold> findByCopyIdAndStatusInOrderByCreatedDateAsc(Long copyId, Collection<Status> statuses);
+
+    @EntityGraph(attributePaths = "user")
+    List<Hold> findByBookIdAndStatusInOrderByCreatedDateAsc(Long bookId, Collection<Status> statuses);
 }

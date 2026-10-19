@@ -30,6 +30,10 @@ export class DeleteCopyModalBks extends LitElement {
           <h2>Delete Copy?</h2>
           <p>Are you sure you want to delete this copy?</p>
           <p>This action cannot be undone.</p>
+          <p class="delete-warning">
+            The copy leaves the catalogue. Nothing is destroyed: its loan
+            history is kept.
+          </p>
           <div class="button-container">
             <button-bks
               variant="danger"
@@ -57,18 +61,34 @@ export class DeleteCopyModalBks extends LitElement {
   async _handleConfirmDelete() {
     try {
       await deleteCopy(this.copy.id);
+    } catch (err) {
+      // A 403 already raised the shell's banner (ACCESS_DENIED_EVENT)
+      if (err.status === 403) {
+        this._handleClose();
+        return;
+      }
 
       this.dispatchEvent(
-        new CustomEvent('copy-deleted', {
+        new CustomEvent('delete-refused', {
           bubbles: true,
           composed: true,
-          detail: { bookId: this.copy.bookId },
+          detail: {
+            message:
+              err.message ||
+              'This copy could not be deleted. Please try again later.',
+          },
         }),
       );
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to delete copy:', err);
+      return;
     }
+
+    this.dispatchEvent(
+      new CustomEvent('copy-deleted', {
+        bubbles: true,
+        composed: true,
+        detail: { bookId: this.copy.bookId },
+      }),
+    );
   }
 }
 

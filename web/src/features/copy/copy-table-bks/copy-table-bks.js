@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { copyTableBksStyles } from './copy-table-bks-styles.js';
 import { createCopy } from '../../../api/copy.js';
 import { formatStatus } from '../../../utils/statusFormatter.js';
+import { isAdmin } from '../../../auth-state.js';
 import '../../../components/spinner-bks/spinner-bks.js';
 import '../../../components/dropdown-bks/dropdown-bks.js';
 
@@ -270,13 +271,17 @@ export class CopyTableBks extends LitElement {
         label: 'Update section',
         class: '',
       },
-      {
-        action: 'delete-copy',
-        data,
-        path: 'M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z',
-        label: 'Delete copy',
-        class: 'dropdown-item-danger',
-      },
+      ...(isAdmin()
+        ? [
+            {
+              action: 'delete-copy',
+              data,
+              path: 'M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z',
+              label: 'Delete copy',
+              class: 'dropdown-item-danger',
+            },
+          ]
+        : []),
     ];
   }
 

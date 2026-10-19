@@ -25,6 +25,11 @@ export const deleteCopyModalBksStyles = css`
     padding: 0.5rem;
   }
 
+  .delete-warning {
+    font-size: 0.875rem;
+    color: var(--clr-text-muted);
+  }
+
   .button-container {
     display: flex;
     gap: 1rem;

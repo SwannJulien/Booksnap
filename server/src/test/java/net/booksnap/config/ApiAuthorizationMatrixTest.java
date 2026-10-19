@@ -80,7 +80,7 @@ class ApiAuthorizationMatrixTest {
                 Arguments.of(HttpMethod.GET, "/api/v1/copies/" + ABSENT_ID, EVERYONE),
                 Arguments.of(HttpMethod.POST, "/api/v1/copies", STAFF),
                 Arguments.of(HttpMethod.PUT, "/api/v1/copies/" + ABSENT_ID, STAFF),
-                Arguments.of(HttpMethod.DELETE, "/api/v1/copies/" + ABSENT_ID, STAFF),
+                Arguments.of(HttpMethod.DELETE, "/api/v1/copies/" + ABSENT_ID, ADMIN_ONLY),
 
                 // BorrowingController
                 Arguments.of(HttpMethod.GET, "/api/v1/borrowings", STAFF),

@@ -55,7 +55,7 @@ public class HoldServiceImpl implements HoldService {
      */
     @Transactional
     public CreateHoldResponse createHold(CreateHoldRequest createHoldRequest) {
-        Book book = bookRepository.findById(createHoldRequest.bookId())
+        Book book = bookRepository.findByIdAndDeletedAtIsNull(createHoldRequest.bookId())
                 .orElseThrow(() -> new BookNotFoundException(createHoldRequest.bookId()));
 
         User user = userRepository.findById(createHoldRequest.userId())
@@ -63,7 +63,7 @@ public class HoldServiceImpl implements HoldService {
 
         // A book can only be held once every copy is out: an available copy is meant to be
         // borrowed, not reserved (a pending hold would never get promoted otherwise).
-        if (copyRepository.countByBookIdAndStatus(
+        if (copyRepository.countByBookIdAndStatusAndDeletedAtIsNull(
                 book.getId(), net.booksnap.domain.copy.Status.available) > 0) {
             throw new BookHasAvailableCopyException(book.getId());
         }

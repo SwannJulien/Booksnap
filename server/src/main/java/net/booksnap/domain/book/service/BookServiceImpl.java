@@ -9,7 +9,12 @@ import net.booksnap.domain.book.api.dto.CreateBookResponse;
 import net.booksnap.domain.book.mapper.BookApiMapper;
 import net.booksnap.domain.book.repository.BookRepository;
 import net.booksnap.domain.book.repository.BookSpecifications;
+import net.booksnap.domain.borrowing.Borrowing;
+import net.booksnap.domain.borrowing.repository.BorrowingRepository;
+import net.booksnap.domain.hold.Hold;
+import net.booksnap.domain.hold.repository.HoldRepository;
 import net.booksnap.exception.book.BookAlreadyExistsException;
+import net.booksnap.exception.book.BookHasActiveLoanOrHoldException;
 import net.booksnap.domain.common.dto.ListResponse;
 import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.copy.Copy;
@@ -32,6 +37,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +51,8 @@ public class BookServiceImpl implements BookService {
     private final BookApiMapper bookApiMapper;
     private final CopyRepository copyRepository;
     private final CopyApiMapper copyApiMapper;
+    private final BorrowingRepository borrowingRepository;
+    private final HoldRepository holdRepository;
     private final QRCodeService qrCodeService;
     private final Utils utils;
     private final CoverService coverService;
@@ -53,6 +61,8 @@ public class BookServiceImpl implements BookService {
                            BookApiMapper bookApiMapper,
                            CopyRepository copyRepository,
                            CopyApiMapper copyApiMapper,
+                           BorrowingRepository borrowingRepository,
+                           HoldRepository holdRepository,
                            QRCodeService qrCodeService,
                            Utils utils,
                            CoverService coverService) {
@@ -60,6 +70,8 @@ public class BookServiceImpl implements BookService {
         this.bookApiMapper = bookApiMapper;
         this.copyRepository = copyRepository;
         this.copyApiMapper = copyApiMapper;
+        this.borrowingRepository = borrowingRepository;
+        this.holdRepository = holdRepository;
         this.qrCodeService = qrCodeService;
         this.utils = utils;
         this.coverService = coverService;
@@ -122,27 +134,27 @@ public class BookServiceImpl implements BookService {
     private void checkIfBookAlreadyExists(CreateBookRequest createBookRequest) {
         // Check if book already exists by ISBN10, ISBN13, or title
         if (createBookRequest.isbn10() != null && !createBookRequest.isbn10().isEmpty()) {
-            bookRepository.findByIsbn10(createBookRequest.isbn10())
+            bookRepository.findByIsbn10AndDeletedAtIsNull(createBookRequest.isbn10())
                 .ifPresent(book -> {
                     throw new BookAlreadyExistsException("ISBN-10: " + createBookRequest.isbn10(), book.getId());
                 });
         }
 
         if (createBookRequest.isbn13() != null && !createBookRequest.isbn13().isEmpty()) {
-            bookRepository.findByIsbn13(createBookRequest.isbn13())
+            bookRepository.findByIsbn13AndDeletedAtIsNull(createBookRequest.isbn13())
                 .ifPresent(book -> {
                     throw new BookAlreadyExistsException("ISBN-13: " + createBookRequest.isbn13(), book.getId());
                 });
         }
 
-        bookRepository.findByTitleIgnoreCase(createBookRequest.title())
+        bookRepository.findByTitleIgnoreCaseAndDeletedAtIsNull(createBookRequest.title())
             .ifPresent(book -> {
                 throw new BookAlreadyExistsException("Title: " + createBookRequest.title(), book.getId());
             });
     }
 
     public BookResponse findBookById(Long bookId) {
-        Book book = bookRepository.findById(bookId)
+        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
             .orElseThrow(() -> new BookNotFoundException(bookId));
         return bookApiMapper.bookEntityToBookResponse(book);
     }
@@ -157,13 +169,13 @@ public class BookServiceImpl implements BookService {
     }
 
     public Page<BookResponse> findAllBooks(Pageable pageable) {
-        Page<Book> bookPage = bookRepository.findAll(pageable);
+        Page<Book> bookPage = bookRepository.findAll(BookSpecifications.notDeleted(), pageable);
         return bookPage.map(bookApiMapper::bookEntityToBookResponse);
     }
 
     public ListResponse<CopyResponse> findAllBookCopies(Long bookId) {
         // Validate book exists - will throw BookNotFoundException if not found
-        Book book = bookRepository.findById(bookId)
+        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new BookNotFoundException(bookId));
         log.debug("Finding copies for book: {} - {}", book.getId(), book.getTitle());
         
@@ -177,26 +189,35 @@ public class BookServiceImpl implements BookService {
         return new ListResponse<>(copyResponses);
     }
 
+    // The cover is kept on purpose: the archive still shows the record
     @Transactional
     public void deleteBookById(Long bookId) {
-        Book book = bookRepository.findById(bookId)
+        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new BookNotFoundException(bookId));
 
-        // Read the cover key before the book is gone, and only drop the cover when no
-        // other book is keyed to it
-        String isbn = primaryIsbn(book);
-        boolean coverIsShared = isbn != null && bookRepository.countOtherBooksSharingIsbn(bookId, isbn) > 0;
+        List<Borrowing> activeLoans = borrowingRepository.findByCopyBookIdAndStatusInOrderByEndDateAsc(
+                bookId, net.booksnap.domain.borrowing.Status.ACTIVE);
+        List<Hold> activeHolds = holdRepository.findByBookIdAndStatusInOrderByCreatedDateAsc(
+                bookId, net.booksnap.domain.hold.Status.ACTIVE);
 
-        bookRepository.deleteById(bookId);
-
-        if (isbn != null && !coverIsShared) {
-            coverService.deleteCoverImage(isbn);
+        if (!activeLoans.isEmpty() || !activeHolds.isEmpty()) {
+            throw new BookHasActiveLoanOrHoldException(book, activeLoans, activeHolds);
         }
+
+        LocalDateTime deletedAt = LocalDateTime.now();
+        book.setDeletedAt(deletedAt);
+        bookRepository.save(book);
+
+        // findAllByBookId filters on the copy's own deletedAt, so it still works after
+        // the book has been marked
+        List<Copy> copies = copyRepository.findAllByBookId(bookId);
+        copies.forEach(copy -> copy.setDeletedAt(deletedAt));
+        copyRepository.saveAll(copies);
     }
 
     @Transactional
     public void updateBook(Long bookId, CreateBookRequest request) {
-        Book book = bookRepository.findById(bookId)
+        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new BookNotFoundException(bookId));
 
         String previousIsbn = primaryIsbn(book);
@@ -245,7 +266,7 @@ public class BookServiceImpl implements BookService {
     }
 
     public PagedResponse<BookResponse> searchBooks(BookSearchFilter filter, Pageable pageable) {
-        Specification<Book> spec = Specification.where(null);
+        Specification<Book> spec = Specification.where(BookSpecifications.notDeleted());
 
         if (filter.q() != null && filter.q().trim().length() >= 2) {
             spec = spec.and(BookSpecifications.textSearch(filter.q().trim()));
