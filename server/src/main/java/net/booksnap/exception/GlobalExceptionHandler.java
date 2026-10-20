@@ -14,6 +14,7 @@ import net.booksnap.exception.common.BadRequestException;
 import net.booksnap.exception.copy.CopyHasActiveLoanOrHoldException;
 import net.booksnap.exception.copy.CopyNotAvailableException;
 import net.booksnap.exception.copy.CopyNotFoundException;
+import net.booksnap.exception.copy.CopyStatusChangeRefusedException;
 import net.booksnap.exception.cover.CoverNotFoundException;
 import net.booksnap.exception.dewey.DeweyCodeNotFoundException;
 import net.booksnap.exception.dewey.FictionBookHasDeweyCodeException;
@@ -204,6 +205,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CopyHasActiveLoanOrHoldException.class)
     public ResponseEntity<DeletionBlockedError> handleCopyHasActiveLoanOrHold(CopyHasActiveLoanOrHoldException ex, HttpServletRequest request) {
         DeletionBlockedError error = new DeletionBlockedError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                ex.getActiveBorrowings(),
+                ex.getActiveHolds()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(CopyStatusChangeRefusedException.class)
+    public ResponseEntity<StatusChangeRefusedError> handleCopyStatusChangeRefused(CopyStatusChangeRefusedException ex, HttpServletRequest request) {
+        StatusChangeRefusedError error = new StatusChangeRefusedError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),

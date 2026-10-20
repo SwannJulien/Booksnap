@@ -62,7 +62,11 @@ export async function updateCopy(copyId, payload) {
 
   if (response.status !== 204) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to update copy');
+    const error = new Error(errorData.message || 'Failed to update copy');
+    error.status = response.status;
+    error.activeBorrowings = errorData.activeBorrowings ?? [];
+    error.activeHolds = errorData.activeHolds ?? [];
+    throw error;
   }
 }
 

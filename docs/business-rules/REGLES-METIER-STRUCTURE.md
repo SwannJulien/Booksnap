@@ -168,10 +168,11 @@ L'archivage est l'opération du quotidien ; la suppression ne sert qu'au cas
 
 ## 5. `copy.status` appartient aux triggers
 
-`copy.status` n'est **jamais** écrit par le code applicatif, hors action manuelle
-« Update status ». Quatre triggers le synchronisent depuis `borrowing` et
-`hold`. Le détail des règles est dans
-[règles emprunts §5](REGLES-METIER-EMPRUNTS-RESERVATIONS.md).
+Hors création d'une copie, le code applicatif n'écrit `copy.status` que pour la
+déclarer `lost` (depuis `available`) ou retrouvée (`lost` vers `available`) ; tout
+le reste appartient aux triggers, et `damaged` ne s'écrit qu'en psql. Quatre
+triggers synchronisent le statut depuis `borrowing` et `hold`. Le détail des
+règles est dans [règles emprunts §5](REGLES-METIER-EMPRUNTS-RESERVATIONS.md).
 
 Deux conséquences pour toute nouvelle fonctionnalité qui touche aux prêts :
 

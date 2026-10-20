@@ -126,7 +126,9 @@ accident** un emprunt vieux de trois ans. Retirer une copie du fonds devient une
 décision sur l'archive, et non un geste de comptoir.
 
 Le bibliothécaire garde le geste de comptoir qui lui revient : faire passer une
-copie `available`/`damaged` à `lost`, ce qui la sort des rayons sans rien effacer.
+copie `available`/`damaged` à `lost`, ce qui la sort des rayons sans rien effacer,
+et la repasser à `available` quand elle est retrouvée. Il peut aussi signaler une
+copie `available` comme `damaged` (qui reste empruntable) et la remettre en état.
 Un journal des suppressions aurait expliqué après coup ; il n'aurait rien empêché.
 
 ### 4.2 Déplacer une copie exige les droits sur les deux bibliothèques

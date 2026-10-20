@@ -56,6 +56,20 @@ public final class BookSpecifications {
         };
     }
 
+    public static Specification<Book> hasLiveCopy() {
+        return (root, cq, cb) -> {
+            Subquery<Long> subquery = cq.subquery(Long.class);
+            Root<Copy> copy = subquery.from(Copy.class);
+            subquery.select(copy.get("id"))
+                    .where(
+                            cb.equal(copy.get("book"), root),
+                            cb.notEqual(copy.get("status"), Status.lost),
+                            cb.isNull(copy.get("deletedAt"))
+                    );
+            return cb.exists(subquery);
+        };
+    }
+
     public static Specification<Book> hasKeyStage(KeyStage keyStage) {
         return (root, cq, cb) -> cb.equal(root.get("yearRecommendation"), keyStage);
     }

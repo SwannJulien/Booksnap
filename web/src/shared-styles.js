@@ -41,10 +41,6 @@ export const sharedStyles = css`
     }
   }
 
-  option {
-    background-color: white;
-  }
-
   input:user-invalid,
   select:user-invalid {
     border: solid 2px red;

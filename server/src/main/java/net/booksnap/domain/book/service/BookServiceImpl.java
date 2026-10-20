@@ -2,6 +2,7 @@ package net.booksnap.domain.book.service;
 
 import lombok.extern.slf4j.Slf4j;
 import net.booksnap.domain.book.Book;
+import net.booksnap.domain.book.CatalogVisibility;
 import net.booksnap.domain.book.api.dto.BookResponse;
 import net.booksnap.domain.book.api.dto.BookSearchFilter;
 import net.booksnap.domain.book.api.dto.CreateBookRequest;
@@ -153,14 +154,25 @@ public class BookServiceImpl implements BookService {
             });
     }
 
-    public BookResponse findBookById(Long bookId) {
-        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
-            .orElseThrow(() -> new BookNotFoundException(bookId));
-        return bookApiMapper.bookEntityToBookResponse(book);
+    public BookResponse findBookById(Long bookId, CatalogVisibility visibility) {
+        Book book = findVisibleBook(bookId, visibility);
+        BookResponse response = bookApiMapper.bookEntityToBookResponse(book);
+        return withCounts(response, batchLoadCopyCounts(List.of(bookId), visibility).get(bookId));
     }
 
-    public Object findByIdWithFields(Long bookId, String fields) {
-        BookResponse bookResponse = findBookById(bookId);
+    // A student gets a 404 for a book none of whose copies is on the shelf or could come back
+    private Book findVisibleBook(Long bookId, CatalogVisibility visibility) {
+        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
+            .orElseThrow(() -> new BookNotFoundException(bookId));
+        if (!visibility.includesLost()
+                && !copyRepository.existsByBookIdAndDeletedAtIsNullAndStatusNot(bookId, Status.lost)) {
+            throw new BookNotFoundException(bookId);
+        }
+        return book;
+    }
+
+    public Object findByIdWithFields(Long bookId, String fields, CatalogVisibility visibility) {
+        BookResponse bookResponse = findBookById(bookId, visibility);
         try {
             return utils.filterFields(bookResponse, fields);
         } catch (Exception e) {
@@ -168,18 +180,22 @@ public class BookServiceImpl implements BookService {
         }
     }
 
-    public Page<BookResponse> findAllBooks(Pageable pageable) {
-        Page<Book> bookPage = bookRepository.findAll(BookSpecifications.notDeleted(), pageable);
-        return bookPage.map(bookApiMapper::bookEntityToBookResponse);
+    public Page<BookResponse> findAllBooks(Pageable pageable, CatalogVisibility visibility) {
+        Specification<Book> spec = Specification.where(BookSpecifications.notDeleted());
+        if (!visibility.includesLost()) {
+            spec = spec.and(BookSpecifications.hasLiveCopy());
+        }
+
+        Page<Book> bookPage = bookRepository.findAll(spec, pageable);
+        return withCounts(bookPage, visibility);
     }
 
-    public ListResponse<CopyResponse> findAllBookCopies(Long bookId) {
+    public ListResponse<CopyResponse> findAllBookCopies(Long bookId, CatalogVisibility visibility) {
         // Validate book exists - will throw BookNotFoundException if not found
-        Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
-                .orElseThrow(() -> new BookNotFoundException(bookId));
+        Book book = findVisibleBook(bookId, visibility);
         log.debug("Finding copies for book: {} - {}", book.getId(), book.getTitle());
         
-        List<Copy> copies = copyRepository.findAllByBookId(bookId);
+        List<Copy> copies = copyRepository.findVisibleByBookId(bookId, visibility.includesLost(), Status.lost);
         log.debug("Found {} copies for book ID: {}", copies.size(), bookId);
         
         List<CopyResponse> copyResponses = copies.stream()
@@ -265,8 +281,12 @@ public class BookServiceImpl implements BookService {
         return null;
     }
 
-    public PagedResponse<BookResponse> searchBooks(BookSearchFilter filter, Pageable pageable) {
+    public PagedResponse<BookResponse> searchBooks(BookSearchFilter filter, Pageable pageable, CatalogVisibility visibility) {
         Specification<Book> spec = Specification.where(BookSpecifications.notDeleted());
+
+        if (!visibility.includesLost()) {
+            spec = spec.and(BookSpecifications.hasLiveCopy());
+        }
 
         if (filter.q() != null && filter.q().trim().length() >= 2) {
             spec = spec.and(BookSpecifications.textSearch(filter.q().trim()));
@@ -277,7 +297,13 @@ public class BookServiceImpl implements BookService {
         }
 
         if (filter.copyStatuses() != null && !filter.copyStatuses().isEmpty()) {
-            spec = spec.and(BookSpecifications.hasCopyWithStatus(filter.copyStatuses()));
+            List<Status> statuses = visibility.includesLost()
+                    ? filter.copyStatuses()
+                    : filter.copyStatuses().stream().filter(status -> status != Status.lost).toList();
+            // An emptied list means "no result", not "no filter"
+            spec = statuses.isEmpty()
+                    ? spec.and((root, cq, cb) -> cb.disjunction())
+                    : spec.and(BookSpecifications.hasCopyWithStatus(statuses));
         }
 
         if (filter.keyStage() != null) {
@@ -293,29 +319,33 @@ public class BookServiceImpl implements BookService {
 
         Page<Book> bookPage = bookRepository.findAll(spec, pageable);
 
-        // Batch-load copy counts to avoid N+1
-        List<Long> bookIds = bookPage.getContent().stream().map(Book::getId).toList();
-        Map<Long, CountCopiesDTO> copyCounts = batchLoadCopyCounts(bookIds);
-
-        Page<BookResponse> responsePage = bookPage.map(book -> {
-            BookResponse response = bookApiMapper.bookEntityToBookResponse(book);
-            CountCopiesDTO counts = copyCounts.getOrDefault(book.getId(), new CountCopiesDTO(0, 0));
-            return new BookResponse(
-                    response.id(), response.title(), response.isbn10(), response.isbn13(),
-                    response.publishingYear(), response.publisher(), response.numberOfPages(),
-                    response.yearRecommendation(), response.isFiction(), response.codeDewey(),
-                    response.genres(), response.authors(), counts, response.audit()
-            );
-        });
-
-        return PagedResponse.of(responsePage);
+        return PagedResponse.of(withCounts(bookPage, visibility));
     }
 
-    private Map<Long, CountCopiesDTO> batchLoadCopyCounts(List<Long> bookIds) {
+    // Batch-loaded to avoid N+1
+    private Page<BookResponse> withCounts(Page<Book> bookPage, CatalogVisibility visibility) {
+        List<Long> bookIds = bookPage.getContent().stream().map(Book::getId).toList();
+        Map<Long, CountCopiesDTO> copyCounts = batchLoadCopyCounts(bookIds, visibility);
+
+        return bookPage.map(book -> withCounts(
+                bookApiMapper.bookEntityToBookResponse(book), copyCounts.get(book.getId())));
+    }
+
+    private BookResponse withCounts(BookResponse response, CountCopiesDTO counts) {
+        CountCopiesDTO safeCounts = counts != null ? counts : new CountCopiesDTO(0, 0);
+        return new BookResponse(
+                response.id(), response.title(), response.isbn10(), response.isbn13(),
+                response.publishingYear(), response.publisher(), response.numberOfPages(),
+                response.yearRecommendation(), response.isFiction(), response.codeDewey(),
+                response.genres(), response.authors(), safeCounts, response.audit()
+        );
+    }
+
+    private Map<Long, CountCopiesDTO> batchLoadCopyCounts(List<Long> bookIds, CatalogVisibility visibility) {
         if (bookIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        return copyRepository.countCopiesByBookIds(bookIds, Status.available).stream()
+        return copyRepository.countCopiesByBookIds(bookIds, Status.available, visibility.includesLost(), Status.lost).stream()
                 .collect(Collectors.toMap(
                         row -> (Long) row[0],
                         row -> new CountCopiesDTO((Long) row[1], (Long) row[2])

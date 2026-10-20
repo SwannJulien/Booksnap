@@ -41,5 +41,11 @@ export const barcodeScannerBksStyles = [
     button-bks {
       margin-top: 0;
     }
+
+    .error {
+      margin: 0;
+      color: var(--clr-warning);
+      text-align: center;
+    }
   `,
 ];

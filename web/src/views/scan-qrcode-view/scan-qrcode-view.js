@@ -5,6 +5,7 @@ import { getBorrowingByCopyId } from '../../api/borrowing.js';
 import '../../features/scanner/barcode-scanner-bks/barcode-scanner-bks.js';
 import '../../features/borrowing/loan-modal-bks/loan-modal-bks.js';
 import '../../features/borrowing/return-modal-bks/return-modal-bks.js';
+import '../../features/copy/copy-status-modal-bks/copy-status-modal-bks.js';
 
 // QR content format: COPY:{copyId}:LIB:{libraryId}:BOOK:{bookId}:CHK:{checksum}
 function extractCopyId(code) {
@@ -23,6 +24,7 @@ export class ScanQrcodeView extends LitElement {
     _copyId: { type: String, state: true },
     _copyToLend: { type: Object, state: true },
     _borrowingToReturn: { type: Object, state: true },
+    _lostCopy: { type: Object, state: true },
   };
 
   constructor() {
@@ -31,6 +33,7 @@ export class ScanQrcodeView extends LitElement {
     this._copyId = null;
     this._copyToLend = null;
     this._borrowingToReturn = null;
+    this._lostCopy = null;
   }
 
   _handleScanResult(e) {
@@ -69,6 +72,13 @@ export class ScanQrcodeView extends LitElement {
           bookTitle: result.bookTitle,
           hold: result.hold,
         };
+      } else if (result.copyStatus === 'lost') {
+        // Found again: ask whether to put it back on the shelf, never decide for the librarian
+        this._lostCopy = {
+          id: copyId,
+          status: 'lost',
+          bookTitle: result.bookTitle,
+        };
       } else {
         console.log(
           `Copy ${copyId} is not borrowed (status: ${result.copyStatus})`,
@@ -85,6 +95,17 @@ export class ScanQrcodeView extends LitElement {
 
   _handleReturnModalClose() {
     this._borrowingToReturn = null;
+  }
+
+  _handleCopyStatusModalClose() {
+    this._lostCopy = null;
+  }
+
+  // A copy set aside for a student keeps the modal open so the librarian can read who it is for
+  _handleCopyStatusChanged(e) {
+    if (!e.detail.setAside) {
+      this._lostCopy = null;
+    }
   }
 
   render() {
@@ -108,6 +129,12 @@ export class ScanQrcodeView extends LitElement {
         .studentName=${this._borrowingToReturn?.studentName ?? ''}
         @modal-close=${this._handleReturnModalClose}
       ></return-modal-bks>
+      <copy-status-modal-bks
+        ?open=${!!this._lostCopy}
+        .copy=${this._lostCopy}
+        @modal-close=${this._handleCopyStatusModalClose}
+        @copy-status-changed=${this._handleCopyStatusChanged}
+      ></copy-status-modal-bks>
     `;
   }
 }

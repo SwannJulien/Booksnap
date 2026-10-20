@@ -1,11 +1,13 @@
 package net.booksnap.domain.copy.service;
 
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import net.booksnap.domain.book.Book;
 import net.booksnap.domain.book.repository.BookRepository;
 import net.booksnap.domain.borrowing.Borrowing;
 import net.booksnap.domain.borrowing.repository.BorrowingRepository;
 import net.booksnap.domain.copy.Copy;
+import net.booksnap.domain.copy.Status;
 import net.booksnap.domain.copy.api.dto.CreateCopyRequest;
 import net.booksnap.domain.copy.api.dto.CreateCopyResponse;
 import net.booksnap.domain.copy.api.dto.UpdateCopyRequest;
@@ -14,9 +16,11 @@ import net.booksnap.domain.copy.mapper.CopyApiMapper;
 import net.booksnap.domain.copy.repository.CopyRepository;
 import net.booksnap.domain.hold.Hold;
 import net.booksnap.domain.hold.repository.HoldRepository;
+import net.booksnap.domain.hold.service.HoldService;
 import net.booksnap.exception.book.BookNotFoundException;
 import net.booksnap.exception.copy.CopyHasActiveLoanOrHoldException;
 import net.booksnap.exception.copy.CopyNotFoundException;
+import net.booksnap.exception.copy.CopyStatusChangeRefusedException;
 import net.booksnap.domain.library.Library;
 import net.booksnap.utils.qr.QRCodeService;
 import net.booksnap.utils.Utils;
@@ -37,6 +41,8 @@ public class CopyServiceImpl implements CopyService {
     private final BookRepository bookRepository;
     private final BorrowingRepository borrowingRepository;
     private final HoldRepository holdRepository;
+    private final HoldService holdService;
+    private final EntityManager entityManager;
     private final QRCodeService qrCodeService;
     private final CopyApiMapper copyApiMapper;
     private final Utils utils;
@@ -45,6 +51,8 @@ public class CopyServiceImpl implements CopyService {
                            BookRepository bookRepository,
                            BorrowingRepository borrowingRepository,
                            HoldRepository holdRepository,
+                           HoldService holdService,
+                           EntityManager entityManager,
                            QRCodeService qrCodeService,
                            CopyApiMapper copyApiMapper,
                            Utils utils) {
@@ -52,6 +60,8 @@ public class CopyServiceImpl implements CopyService {
         this.bookRepository = bookRepository;
         this.borrowingRepository = borrowingRepository;
         this.holdRepository = holdRepository;
+        this.holdService = holdService;
+        this.entityManager = entityManager;
         this.qrCodeService = qrCodeService;
         this.copyApiMapper = copyApiMapper;
         this.utils = utils;
@@ -144,8 +154,11 @@ public class CopyServiceImpl implements CopyService {
         copyRepository.save(copy);
     }
 
+    // Transactional: a refusal rolls back the section change with it, and the promotion
+    // has to run in this transaction, after the status write is flushed.
+    @Transactional
     public void updateCopy(Long copyId, UpdateCopyRequest request) {
-        Copy existingCopy = copyRepository.findByIdAndDeletedAtIsNull(copyId)
+        Copy existingCopy = copyRepository.findByIdAndDeletedAtIsNullForUpdate(copyId)
             .orElseThrow(() -> new CopyNotFoundException(copyId));
 
         if (request.libraryId() != null) {
@@ -159,10 +172,29 @@ public class CopyServiceImpl implements CopyService {
             existingCopy.setIdentificationCode(identificationCode);
         }
 
-        if (request.status() != null) {
-            existingCopy.setStatus(request.status());
+        Status target = request.status();
+        if (target != null) {
+            if (!existingCopy.getStatus().allowsManualChangeTo(target)) {
+                throw refusal(existingCopy, target);
+            }
+            existingCopy.setStatus(target);
         }
 
-        copyRepository.save(existingCopy);
+        // Flushed before the promotion: the hold's trigger must fire after this write,
+        // or this write would put 'available' back over its 'on_hold'
+        copyRepository.saveAndFlush(existingCopy);
+        entityManager.refresh(existingCopy);
+
+        if (target == Status.available) {
+            holdService.promoteNextPendingHold(existingCopy);
+        }
+    }
+
+    private CopyStatusChangeRefusedException refusal(Copy copy, Status target) {
+        List<Borrowing> loans = borrowingRepository.findByCopyIdAndStatusInOrderByEndDateAsc(
+                copy.getId(), net.booksnap.domain.borrowing.Status.ACTIVE);
+        List<Hold> holds = holdRepository.findByCopyIdAndStatusInOrderByCreatedDateAsc(
+                copy.getId(), net.booksnap.domain.hold.Status.ACTIVE);
+        return new CopyStatusChangeRefusedException(copy, target, loans, holds);
     }
 }

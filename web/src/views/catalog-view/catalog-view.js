@@ -16,6 +16,7 @@ import '../../features/copy/copy-qr-modal-bks/copy-qr-modal-bks.js';
 import '../../features/book/delete-book-modal-bks/delete-book-modal-bks.js';
 import '../../features/copy/copy-section-modal-bks/copy-section-modal-bks.js';
 import '../../features/copy/delete-copy-modal-bks/delete-copy-modal-bks.js';
+import '../../features/copy/copy-status-modal-bks/copy-status-modal-bks.js';
 import '../../features/book/create-book-bks/create-book-bks.js';
 import '../../features/borrowing/loan-modal-bks/loan-modal-bks.js';
 import '../../features/borrowing/return-modal-bks/return-modal-bks.js';
@@ -34,6 +35,7 @@ export class CatalogView extends LitElement {
     qrCopy: { type: Object, state: true },
     copyToUpdate: { type: Object, state: true },
     copyToDelete: { type: Object, state: true },
+    copyToChangeStatus: { type: Object, state: true },
     copyToBorrow: { type: Object, state: true },
     borrowingToReturn: { type: Object, state: true },
     bookToHold: { type: Object, state: true },
@@ -60,6 +62,7 @@ export class CatalogView extends LitElement {
     this.qrCopy = null;
     this.copyToUpdate = null;
     this.copyToDelete = null;
+    this.copyToChangeStatus = null;
     this.copyToBorrow = null;
     this.borrowingToReturn = null;
     this.bookToHold = null;
@@ -84,6 +87,7 @@ export class CatalogView extends LitElement {
       ${this._createBookBksTpl} ${this._qrModalTpl} ${this._updateCopyModalTpl}
       ${this._deleteCopyModalTpl} ${this._loanModalTpl} ${this._returnModalTpl}
       ${this._holdModalTpl} ${this._deleteRefusalTpl}
+      ${this._copyStatusModalTpl}
     `;
   }
 
@@ -258,6 +262,9 @@ export class CatalogView extends LitElement {
         break;
       case 'update-section':
         this._handleUpdateCopy(data);
+        break;
+      case 'update-status':
+        this.copyToChangeStatus = data;
         break;
       case 'delete-copy':
         this._handleDeleteCopy(data);
@@ -474,6 +481,31 @@ export class CatalogView extends LitElement {
     if (bookId) {
       this.shadowRoot.querySelector('book-table-bks')?.refreshCopies(bookId);
     }
+  }
+
+  get _copyStatusModalTpl() {
+    return html`
+      <copy-status-modal-bks
+        ?open=${!!this.copyToChangeStatus}
+        .copy=${this.copyToChangeStatus}
+        @modal-close=${this._handleCopyStatusModalClose}
+        @copy-status-changed=${this._handleCopyStatusChanged}
+      ></copy-status-modal-bks>
+    `;
+  }
+
+  _handleCopyStatusModalClose() {
+    this.copyToChangeStatus = null;
+  }
+
+  // A copy set aside for a student keeps the modal open: the librarian has to read who it is for
+  _handleCopyStatusChanged(e) {
+    const { bookId, setAside } = e.detail;
+
+    if (!setAside) {
+      this.copyToChangeStatus = null;
+    }
+    this._refreshCopiesOf(bookId);
   }
 
   get _deleteCopyModalTpl() {

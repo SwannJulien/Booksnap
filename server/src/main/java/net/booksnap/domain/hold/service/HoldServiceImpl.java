@@ -1,5 +1,6 @@
 package net.booksnap.domain.hold.service;
 
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import net.booksnap.domain.author.Author;
 import net.booksnap.domain.book.Book;
@@ -23,8 +24,10 @@ import net.booksnap.exception.hold.HoldAlreadyExistsException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,26 +35,31 @@ import java.util.stream.Collectors;
 @Service
 public class HoldServiceImpl implements HoldService {
 
+    private static final int HOLD_PICKUP_WINDOW_WEEKS = 1;
+
     private final HoldRepository holdRepository;
     private final BookRepository bookRepository;
     private final CopyRepository copyRepository;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     public HoldServiceImpl(HoldRepository holdRepository,
                            BookRepository bookRepository,
                            CopyRepository copyRepository,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           EntityManager entityManager) {
         this.holdRepository = holdRepository;
         this.bookRepository = bookRepository;
         this.copyRepository = copyRepository;
         this.userRepository = userRepository;
+        this.entityManager = entityManager;
     }
 
     /**
      * Queues a student for a book. A hold is only allowed once the book is fully out:
      * if any copy is available it must be borrowed instead. The hold is created 'pending'
      * with no copy attached — a copy is only assigned later, when one is returned and this
-     * hold reaches the head of the queue (see BorrowingServiceImpl#promoteNextPendingHold).
+     * hold reaches the head of the queue (see #promoteNextPendingHold).
      */
     @Transactional
     public CreateHoldResponse createHold(CreateHoldRequest createHoldRequest) {
@@ -121,6 +129,40 @@ public class HoldServiceImpl implements HoldService {
         return PagedResponse.of(holdRepository
                 .findByStatusInAndUserMatching(statuses, query, pageable)
                 .map(HoldServiceImpl::toHoldResponse));
+    }
+
+    /**
+     * Assigns a freed copy to the student who has been queued longest for that book.
+     * Does nothing if the copy is not available — a damaged copy stays damaged, and a
+     * copy already on hold is spoken for. The caller flushes its own write to the copy
+     * first, so the hold's trigger fires after it.
+     *
+     * @return the id of the promoted hold, or null if nobody was queued
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Long promoteNextPendingHold(Copy copy) {
+        if (copy.getStatus() != net.booksnap.domain.copy.Status.available) {
+            return null;
+        }
+
+        return holdRepository
+                .findFirstByBookIdAndStatusOrderByCreatedDateAsc(
+                        copy.getBook().getId(), Status.pending)
+                .map(hold -> {
+                    LocalDate today = LocalDate.now();
+                    hold.setCopy(copy);
+                    hold.setStatus(Status.active);
+                    hold.setStartDate(today);
+                    hold.setEndDate(today.plusWeeks(HOLD_PICKUP_WINDOW_WEEKS));
+                    holdRepository.saveAndFlush(hold);
+                    entityManager.refresh(copy);
+
+                    // TODO: notify the user (hold_ready) once NotificationService exists
+                    log.info("Hold {} promoted to active on copy {}, to collect before {}",
+                            hold.getId(), copy.getId(), hold.getEndDate());
+                    return hold.getId();
+                })
+                .orElse(null);
     }
 
     private static HoldResponse toHoldResponse(Hold hold) {

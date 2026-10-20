@@ -292,6 +292,7 @@ export class CopyTableBks extends LitElement {
   _getStatusClass(status) {
     const s = status?.toLowerCase();
     if (s === 'available') return 'status-available';
+    if (s === 'lost') return 'status-lost';
     return 'status-borrowed';
   }
 

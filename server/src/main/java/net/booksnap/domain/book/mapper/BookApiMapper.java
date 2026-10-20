@@ -5,8 +5,6 @@ import net.booksnap.domain.author.AuthorRepository;
 import net.booksnap.domain.book.Book;
 import net.booksnap.domain.book.api.dto.CreateBookRequest;
 import net.booksnap.domain.book.api.dto.BookResponse;
-import net.booksnap.domain.copy.Status;
-import net.booksnap.domain.copy.repository.CopyRepository;
 import net.booksnap.domain.common.dto.AuditDTO;
 import net.booksnap.domain.dewey.DeweyCategory;
 import net.booksnap.domain.dewey.repository.DeweyCategoryRepository;
@@ -17,7 +15,6 @@ import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.Named;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.HashSet;
@@ -35,9 +32,6 @@ public abstract class BookApiMapper {
 
     @Autowired
     protected AuthorRepository authorRepository;
-
-    @Autowired
-    protected CopyRepository copyRepository;
 
     // Convert API request to Entity
     @Mapping(target = "id", ignore = true)
@@ -97,25 +91,8 @@ public abstract class BookApiMapper {
     @Mapping(target = "authors", expression = "java(mapAuthorsToSet(book.getAuthors()))")
     @Mapping(target = "audit", expression = "java(mapAuditToDTO(book))")
     @Mapping(target = "codeDewey", expression = "java(mapDeweyCode(book.getDeweyCategory()))")
-    @Mapping(target = "countCopies.totalNumberOfCopies", source = "id", qualifiedByName = "countTotalCopies")
-    @Mapping(target = "countCopies.availableCopies", source = "id", qualifiedByName = "countAvailableCopies")
+    @Mapping(target = "countCopies", ignore = true)
     public abstract BookResponse bookEntityToBookResponse(Book book);
-
-    @Named("countTotalCopies")
-    protected long countTotalCopies(Long bookId) {
-        if (bookId == null) {
-            return 0;
-        }
-        return copyRepository.countByBookIdAndDeletedAtIsNull(bookId);
-    }
-
-    @Named("countAvailableCopies")
-    protected long countAvailableCopies(Long bookId) {
-        if (bookId == null) {
-            return 0;
-        }
-        return copyRepository.countByBookIdAndStatusAndDeletedAtIsNull(bookId, Status.available);
-    }
 
     protected Set<String> mapGenresToSet(Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {
