@@ -5,6 +5,7 @@ import net.booksnap.domain.book.api.dto.BookResponse;
 import net.booksnap.domain.book.api.dto.BookSearchFilter;
 import net.booksnap.domain.book.api.dto.CreateBookRequest;
 import net.booksnap.domain.book.api.dto.CreateBookResponse;
+import net.booksnap.domain.book.api.dto.UpdateBookRequest;
 import net.booksnap.domain.common.dto.ListResponse;
 import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.copy.api.dto.CopyResponse;
@@ -20,7 +21,7 @@ public interface BookService {
 
     void deleteBookById(Long bookId);
 
-    void updateBook(Long bookId, CreateBookRequest request);
+    void updateBook(Long bookId, UpdateBookRequest request);
 
     Page<BookResponse> findAllBooks(Pageable pageable, CatalogVisibility visibility);
 

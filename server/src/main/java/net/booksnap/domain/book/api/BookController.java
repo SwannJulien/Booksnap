@@ -6,6 +6,7 @@ import net.booksnap.domain.book.api.dto.BookResponse;
 import net.booksnap.domain.book.api.dto.BookSearchFilter;
 import net.booksnap.domain.book.api.dto.CreateBookRequest;
 import net.booksnap.domain.book.api.dto.CreateBookResponse;
+import net.booksnap.domain.book.api.dto.UpdateBookRequest;
 import net.booksnap.domain.book.service.BookService;
 import net.booksnap.domain.common.dto.ListResponse;
 import net.booksnap.domain.common.dto.PagedResponse;
@@ -86,7 +87,7 @@ public class BookController {
     @PutMapping("/{bookId}")
     @ResponseStatus(code = HttpStatus.NO_CONTENT)
     public void updateBook(@PathVariable Long bookId,
-                           @RequestBody @Valid CreateBookRequest request) {
+                           @RequestBody @Valid UpdateBookRequest request) {
         bookService.updateBook(bookId, request);
     }
 

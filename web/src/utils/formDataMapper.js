@@ -41,12 +41,7 @@ export function mapBookFormData(formData) {
     data.isFiction = null;
   }
 
-  // Transform yearRecommendation to API format (e.g. "KS-2" -> "ks_2", "Pre-school" -> "pre_school")
-  if (data.yearRecommendation) {
-    data.yearRecommendation = data.yearRecommendation
-      .toLowerCase()
-      .replace(/-/g, '_');
-  } else {
+  if (!data.yearRecommendation) {
     data.yearRecommendation = null;
   }
 

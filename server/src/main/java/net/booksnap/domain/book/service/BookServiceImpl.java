@@ -7,6 +7,7 @@ import net.booksnap.domain.book.api.dto.BookResponse;
 import net.booksnap.domain.book.api.dto.BookSearchFilter;
 import net.booksnap.domain.book.api.dto.CreateBookRequest;
 import net.booksnap.domain.book.api.dto.CreateBookResponse;
+import net.booksnap.domain.book.api.dto.UpdateBookRequest;
 import net.booksnap.domain.book.mapper.BookApiMapper;
 import net.booksnap.domain.book.repository.BookRepository;
 import net.booksnap.domain.book.repository.BookSpecifications;
@@ -232,7 +233,7 @@ public class BookServiceImpl implements BookService {
     }
 
     @Transactional
-    public void updateBook(Long bookId, CreateBookRequest request) {
+    public void updateBook(Long bookId, UpdateBookRequest request) {
         Book book = bookRepository.findByIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new BookNotFoundException(bookId));
 
@@ -249,9 +250,9 @@ public class BookServiceImpl implements BookService {
         book.setIsFiction(request.isFiction());
 
         // Handle relationships through the mapper's after-mapping methods
-        bookApiMapper.mapGenresToEntity(book, request);
-        bookApiMapper.mapAuthorsToEntity(book, request);
-        bookApiMapper.mapDeweyCategory(book, request);
+        bookApiMapper.assignGenres(book, request.genres());
+        bookApiMapper.assignAuthors(book, request.authors());
+        bookApiMapper.assignDeweyCategory(book, request.codeDewey());
 
         bookRepository.save(book);
 

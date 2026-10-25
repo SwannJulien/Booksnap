@@ -45,8 +45,22 @@ public abstract class BookApiMapper {
 
     @AfterMapping
     public void mapGenresToEntity(@MappingTarget Book book, CreateBookRequest request) {
-        if(request.genres() != null && !request.genres().isEmpty()) {
-            Set<Genre> genreEntities = request.genres().stream()
+        assignGenres(book, request.genres());
+    }
+
+    @AfterMapping
+    public void mapAuthorsToEntity(@MappingTarget Book book, CreateBookRequest request) {
+        assignAuthors(book, request.authors());
+    }
+
+    @AfterMapping
+    public void mapDeweyCategory(@MappingTarget Book book, CreateBookRequest request) {
+        assignDeweyCategory(book, request.codeDewey());
+    }
+
+    public void assignGenres(Book book, Set<String> genres) {
+        if(genres != null && !genres.isEmpty()) {
+            Set<Genre> genreEntities = genres.stream()
                     .map(name -> {
                         String trimmed = name.trim();
                         return genreRepository.findByName(trimmed)
@@ -58,10 +72,9 @@ public abstract class BookApiMapper {
         }
     }
 
-    @AfterMapping
-    public void mapAuthorsToEntity(@MappingTarget Book book, CreateBookRequest request) {
-        if(request.authors() != null && !request.authors().isEmpty()) {
-            Set<Author> authorEntities = request.authors().stream()
+    public void assignAuthors(Book book, Set<String> authors) {
+        if(authors != null && !authors.isEmpty()) {
+            Set<Author> authorEntities = authors.stream()
                     .map(name -> {
                         String trimmed = name.trim();
                         return authorRepository.findByName(trimmed)
@@ -73,10 +86,7 @@ public abstract class BookApiMapper {
         }
     }
 
-    @AfterMapping
-    public void mapDeweyCategory(@MappingTarget Book book, CreateBookRequest request) {
-        String codeDewey = request.codeDewey();
-
+    public void assignDeweyCategory(Book book, String codeDewey) {
         if (codeDewey == null || codeDewey.isBlank()) {
             book.setDeweyCategory(null);
         } else {

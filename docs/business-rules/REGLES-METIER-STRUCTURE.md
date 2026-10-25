@@ -26,6 +26,7 @@ Documents liés :
 - [7. Dérive du schéma réel](#7-dérive-du-schéma-réel)
 - [8. Les colonnes d'audit ne sont pas des clés étrangères](#8-les-colonnes-daudit-ne-sont-pas-des-clés-étrangères)
 - [9. Récapitulatif des cascades](#9-récapitulatif-des-cascades)
+- [10. Le journal de cycle de vie](#10-le-journal-de-cycle-de-vie)
 
 ---
 
@@ -184,6 +185,10 @@ Deux conséquences pour toute nouvelle fonctionnalité qui touche aux prêts :
    **avant** celle de la réservation.
 
 Ces règles s'appliqueront telles quelles au renouvellement et à la suspension.
+
+Toute écriture de `copy.status` est journalisée par un trigger
+([§10](#10-le-journal-de-cycle-de-vie)) : celles des triggers ci-dessus comme un
+`UPDATE` lancé à la main en psql.
 
 ---
 
@@ -425,3 +430,51 @@ masse ajoutée plus tard sur une table auditée.
 > logique depuis `V9` ([§2](#2-supprimer-un-livre-ou-une-copie)), aucun `DELETE` SQL
 > n'est émis, donc ni la `CASCADE` de `copy.book_id` ni les `NO ACTION` qui pointent
 > vers `copy` n'entrent en jeu. Les autres lignes restent d'actualité.
+
+---
+
+## 10. Le journal de cycle de vie
+
+`lifecycle_event` (depuis `V10`) consigne ce qui arrive à un livre et à une copie :
+création, modification, changement de statut, suppression, emprunt, retard,
+retour et les quatre temps d'une réservation. Les colonnes d'audit disent **qui en
+dernier** ; le journal dit **ce qui s'est passé**.
+
+**Il est en ajout seul.** Un trigger refuse tout `UPDATE` et tout `DELETE` sur la
+table. Rien dans l'application ne les émet, et il n'y a pas de purge.
+`TRUNCATE` n'est pas bloqué : seul `reset.sql` le lance, pour une base de
+développement.
+
+**Il n'a aucune clé étrangère, délibérément** — ni vers `book`, `copy`, `library`,
+`borrowing`, `hold`, ni vers `users` (`student_id` compris). Une clé vers `book`
+détruirait le journal à la première suppression physique (`CASCADE`) ou la
+rendrait impossible (`NO ACTION`). Les identifiants y sont des références mortes,
+assumées comme telles. Ne jamais en ajouter « pour l'intégrité ».
+
+**Il est la source unique de l'historique et de la future vue d'analyse.** Un
+graphique est une requête d'agrégation sur cette table, sans stockage à part. Les
+axes de regroupement (livre, copie, bibliothèque, élève, type, date) sont des
+colonnes indexées ; les libellés d'époque (titre, code d'identification, section,
+anciennes et nouvelles valeurs) sont dans `detail`. Le niveau et la maison de
+l'élève sont ceux **du moment** : ils changent chaque année.
+
+**Les événements métier se comptent, les changements de statut non.** Un emprunt
+produit deux lignes : `copy_status_changed` (`available → borrowed`) et `borrowed`.
+Les emprunts se comptent sur `type = 'borrowed'` et sur lui seul ; un
+`count(*) WHERE book_id = …` mêle emprunts, retours, retards et changements de
+statut, et rend un chiffre plausible et faux. `copy_status_changed` sert la
+chronologie d'une copie.
+
+**Qui écrit quoi.** Tout est écrit par des triggers `AFTER` sur `book`, `copy`,
+`borrowing` et `hold`, dans la transaction de l'opération : une opération annulée
+ne laisse rien. L'acteur est l'adresse e-mail de la personne connectée, transmise
+à la base par le paramètre `booksnap.actor` que `ActorAwareJpaTransactionManager`
+pose à chaque transaction en écriture ; sans lui (psql, script, ordonnanceur),
+c'est `system`.
+
+**Les lignes reprises.** `V10` a repris l'existant — créations, emprunts, retours,
+réservations, suppressions — avec `backfilled = true`. Les retours et les
+transitions de réservation sont datés par `last_modified_date`, écrasée par toute
+écriture ultérieure : leur `approximate_date` vaut `true`. L'analyse décide si elle
+les exclut. Les changements de statut, les modifications et les retards antérieurs
+à `V10` ne sont pas repris : aucune date ne les conserve.

@@ -6,6 +6,7 @@ SET session_replication_role = 'replica';
 
 -- Truncate all tables with CASCADE to handle foreign keys
 TRUNCATE TABLE
+    lifecycle_event,
     notification,
     hold,
     borrowing,
