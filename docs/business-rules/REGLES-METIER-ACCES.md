@@ -86,6 +86,8 @@ une bibliothèque. Conséquence importante en [§4](#4-règles-dautorisation-non
 | **Supprimer un livre** | `DELETE /books/{id}` | ❌ | ❌ | ✅ |
 | Créer / modifier une copie | `POST`,`PUT /copies/*` | ❌ | ✅ scopé | ✅ |
 | **Supprimer une copie** | `DELETE /copies/{id}` | ❌ | ❌ | ✅ |
+| Consulter l'historique d'un livre ou d'une copie | `GET /books/{id}/history`, `/copies/{id}/history` | ❌ | ❌ | ✅ |
+| Consulter l'archive des livres et des copies supprimés | `GET /archive/books`, `/archive/copies` | ❌ | ❌ | ✅ |
 | Générer le QR code d'une copie | `GET /copies/{id}/qrcode` | ❌ | ✅ scopé | ✅ |
 | Créer un emprunt | `POST /borrowings` | ❌ | ✅ scopé | ✅ |
 | Enregistrer un retour | `POST /borrowings/{id}/return` | ❌ | ✅ scopé | ✅ |

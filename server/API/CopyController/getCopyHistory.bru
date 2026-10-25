@@ -1,0 +1,24 @@
+meta {
+  name: getCopyHistory
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{vipa}}/api/v1/copies/:copyId/history
+  body: none
+  auth: inherit
+}
+
+params:path {
+  copyId: 1
+}
+
+params:query {
+  page: 1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

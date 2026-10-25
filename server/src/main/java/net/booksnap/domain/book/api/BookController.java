@@ -12,6 +12,8 @@ import net.booksnap.domain.common.dto.ListResponse;
 import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.copy.Status;
 import net.booksnap.domain.copy.api.dto.CopyResponse;
+import net.booksnap.domain.lifecycle.api.dto.LifecycleEventResponse;
+import net.booksnap.domain.lifecycle.service.LifecycleHistoryService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -29,9 +31,11 @@ import java.util.List;
 public class BookController {
 
     private final BookService bookService;
+    private final LifecycleHistoryService lifecycleHistoryService;
 
-    public BookController(BookService bookService) {
+    public BookController(BookService bookService, LifecycleHistoryService lifecycleHistoryService) {
         this.bookService = bookService;
+        this.lifecycleHistoryService = lifecycleHistoryService;
     }
 
     @PostMapping
@@ -71,6 +75,12 @@ public class BookController {
             Authentication authentication) {
 
         return PagedResponse.of(bookService.findAllBooks(pageable, CatalogVisibility.of(authentication)));
+    }
+
+    @GetMapping("/{bookId}/history")
+    public PagedResponse<LifecycleEventResponse> getBookHistory(@PathVariable Long bookId,
+                                                                @PageableDefault(size = 50) Pageable pageable) {
+        return lifecycleHistoryService.findBookHistory(bookId, pageable);
     }
 
     @GetMapping("/{bookId}/copies")
