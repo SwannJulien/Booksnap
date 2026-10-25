@@ -1,0 +1,28 @@
+meta {
+  name: createBookUnknownLibrary
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{vipa}}/api/v1/books
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "ATOM-library",
+    "isFiction": true,
+    "codeDewey": null,
+    "genres": [],
+    "authors": ["ATOM Library"],
+    "libraryId": 999999,
+    "sectionName": "Fiction"
+  }
+}

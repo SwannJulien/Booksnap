@@ -28,11 +28,13 @@ import net.booksnap.domain.copy.Status;
 import net.booksnap.domain.cover.service.CoverService;
 import net.booksnap.exception.book.BookNotFoundException;
 import net.booksnap.exception.common.BadRequestException;
-import net.booksnap.exception.dewey.DeweyCodeNotFoundException;
 import net.booksnap.exception.dewey.FictionBookHasDeweyCodeException;
 import net.booksnap.domain.library.Library;
+import net.booksnap.domain.library.repository.LibraryRepository;
+import net.booksnap.exception.library.LibraryNotFoundException;
 import net.booksnap.utils.qr.QRCodeService;
 import net.booksnap.utils.Utils;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -58,6 +60,7 @@ public class BookServiceImpl implements BookService {
     private final QRCodeService qrCodeService;
     private final Utils utils;
     private final CoverService coverService;
+    private final LibraryRepository libraryRepository;
 
     public BookServiceImpl(BookRepository bookRepository,
                            BookApiMapper bookApiMapper,
@@ -67,7 +70,8 @@ public class BookServiceImpl implements BookService {
                            HoldRepository holdRepository,
                            QRCodeService qrCodeService,
                            Utils utils,
-                           CoverService coverService) {
+                           CoverService coverService,
+                           LibraryRepository libraryRepository) {
         this.bookRepository = bookRepository;
         this.bookApiMapper = bookApiMapper;
         this.copyRepository = copyRepository;
@@ -77,15 +81,18 @@ public class BookServiceImpl implements BookService {
         this.qrCodeService = qrCodeService;
         this.utils = utils;
         this.coverService = coverService;
+        this.libraryRepository = libraryRepository;
     }
+    @Transactional
     public CreateBookResponse addBook(CreateBookRequest createBookRequest) {
         try {
             checkIfBookAlreadyExists(createBookRequest);
+            Library library = libraryRepository.findById(createBookRequest.libraryId())
+                .orElseThrow(() -> new LibraryNotFoundException(createBookRequest.libraryId()));
 
             Book savedBook = createNewBook(createBookRequest);
-            Copy savedCopy = createNewCopy(createBookRequest, savedBook);
+            Copy savedCopy = createNewCopy(createBookRequest, savedBook, library);
 
-            // Generate QR code image
             byte[] qrCode = qrCodeService.generateCopyQRCode(savedCopy);
 
             return new CreateBookResponse(
@@ -95,14 +102,12 @@ public class BookServiceImpl implements BookService {
                 savedBook.getId()
             );
 
-        } catch (BookAlreadyExistsException ex) {
-            throw ex; // Re-throw to be handled by GlobalExceptionHandler
-        } catch (Exception ex) {
-            if (ex.getMessage().contains("non_fiction_requires_dewey")) {
+        } catch (DataIntegrityViolationException ex) {
+            if (ex.getCause() instanceof org.hibernate.exception.ConstraintViolationException violation
+                    && "non_fiction_requires_dewey".equals(violation.getConstraintName())) {
                 throw new FictionBookHasDeweyCodeException();
-            } else if (ex.getMessage().contains("persistent instance references an unsaved transient instance of 'net.booksnap.entity.dewey.Dewey'")) {
-                throw new DeweyCodeNotFoundException(createBookRequest.codeDewey());
-            } else throw new BadRequestException(ex.getMessage());
+            }
+            throw new BadRequestException(ex.getMessage());
         }
     }
 
@@ -112,10 +117,10 @@ public class BookServiceImpl implements BookService {
         return savedBook;
     }
 
-    private Copy createNewCopy(CreateBookRequest createBookRequest, Book savedBook) {
+    private Copy createNewCopy(CreateBookRequest createBookRequest, Book savedBook, Library library) {
         Copy copy = new Copy();
         copy.setBook(savedBook);
-        copy.setLibrary(new Library(createBookRequest.libraryId(), null));
+        copy.setLibrary(library);
         copy.setStatus(Status.available);
         copy.setSectionName(createBookRequest.sectionName());
 
@@ -129,7 +134,8 @@ public class BookServiceImpl implements BookService {
         copy.setCreatedBy(savedBook.getCreatedBy());
         copy.setLastModifiedBy(savedBook.getLastModifiedBy());
 
-        Copy savedCopy = copyRepository.save(copy);
+        // Flushes the book_genre / book_author rows too, so a database error surfaces inside addBook's try
+        Copy savedCopy = copyRepository.saveAndFlush(copy);
         return savedCopy;
     }
 

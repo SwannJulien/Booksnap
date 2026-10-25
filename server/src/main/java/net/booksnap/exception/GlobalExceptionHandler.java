@@ -20,6 +20,7 @@ import net.booksnap.exception.dewey.DeweyCodeNotFoundException;
 import net.booksnap.exception.dewey.FictionBookHasDeweyCodeException;
 import net.booksnap.exception.hold.BookHasAvailableCopyException;
 import net.booksnap.exception.hold.HoldAlreadyExistsException;
+import net.booksnap.exception.library.LibraryNotFoundException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
@@ -137,6 +138,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DeweyCodeNotFoundException.class)
     public ResponseEntity<ApiError> handleDeweyCodeNotFound(DeweyCodeNotFoundException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(LibraryNotFoundException.class)
+    public ResponseEntity<ApiError> handleLibraryNotFound(LibraryNotFoundException ex, HttpServletRequest request) {
         ApiError error = new ApiError(
                 LocalDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
