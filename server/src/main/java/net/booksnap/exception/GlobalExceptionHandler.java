@@ -20,6 +20,7 @@ import net.booksnap.exception.dewey.DeweyCodeNotFoundException;
 import net.booksnap.exception.dewey.FictionBookHasDeweyCodeException;
 import net.booksnap.exception.hold.BookHasAvailableCopyException;
 import net.booksnap.exception.hold.HoldAlreadyExistsException;
+import net.booksnap.exception.library.LibraryNameTakenException;
 import net.booksnap.exception.library.LibraryNotFoundException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -249,6 +250,17 @@ public class GlobalExceptionHandler {
                 request.getRequestURI(),
                 ex.getActiveBorrowings(),
                 ex.getActiveHolds()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(LibraryNameTakenException.class)
+    public ResponseEntity<ApiError> handleLibraryNameTaken(LibraryNameTakenException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }

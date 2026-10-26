@@ -9,7 +9,11 @@ auth {
 
 docs {
     GET  /libraries   admin
+    POST /libraries   admin
 
   The school's libraries, sorted by name ignoring case. A librarian or a student
   gets 403.
+
+  POST takes { name }: surrounding spaces are removed, 255 characters at most (400
+  otherwise), and 409 if a library already bears that name, case aside.
 }

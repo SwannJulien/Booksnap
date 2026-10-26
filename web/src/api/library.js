@@ -12,3 +12,22 @@ export async function getLibraries() {
 
   return response.json();
 }
+
+export async function createLibrary(name) {
+  const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.LIBRARIES}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to create library: ${response.status}`,
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
