@@ -1,7 +1,11 @@
 import { LitElement, html, nothing } from 'lit';
 import { Task } from '@lit/task';
 import { librarySectionBksStyles } from './library-section-bks-styles.js';
-import { createLibrary, getLibraries } from '../../../api/library.js';
+import {
+  createLibrary,
+  getLibraries,
+  renameLibrary,
+} from '../../../api/library.js';
 import '../../../components/button-bks/button-bks.js';
 import '../../../components/spinner-bks/spinner-bks.js';
 
@@ -12,6 +16,10 @@ export class LibrarySectionBks extends LitElement {
     _adding: { state: true },
     _error: { state: true },
     _submitting: { state: true },
+    _renamingId: { state: true },
+    _renameDraft: { state: true },
+    _renameError: { state: true },
+    _renaming: { state: true },
   };
 
   librariesTask = new Task(this, {
@@ -24,6 +32,10 @@ export class LibrarySectionBks extends LitElement {
     this._adding = false;
     this._error = '';
     this._submitting = false;
+    this._renamingId = null;
+    this._renameDraft = '';
+    this._renameError = '';
+    this._renaming = false;
   }
 
   render() {
@@ -36,7 +48,7 @@ export class LibrarySectionBks extends LitElement {
             libraries.length === 0
               ? html`<p>No library yet.</p>`
               : html`<ul>
-                  ${libraries.map(library => html`<li>${library.name}</li>`)}
+                  ${libraries.map(library => this._renderLibrary(library))}
                 </ul>`,
           error: () =>
             html`<p role="alert">The libraries could not be loaded.</p>`,
@@ -44,6 +56,43 @@ export class LibrarySectionBks extends LitElement {
         ${this._adding ? this._renderForm() : this._renderAddButton()}
       </section>
     `;
+  }
+
+  _renderLibrary(library) {
+    return library.id === this._renamingId
+      ? this._renderRenameForm(library)
+      : html`<li>
+          ${library.name}
+          <button-bks
+            label="Rename"
+            @click=${() => this._openRename(library)}
+          ></button-bks>
+        </li>`;
+  }
+
+  _renderRenameForm(library) {
+    return html`<li>
+      <form @submit=${event => this._handleRename(event, library)} novalidate>
+        <input
+          name="name"
+          aria-label="New name"
+          maxlength="255"
+          .value=${this._renameDraft}
+          @input=${event => {
+            this._renameDraft = event.target.value;
+          }}
+        />
+        <button-bks
+          type="submit"
+          label="Save"
+          ?disabled=${this._renaming}
+        ></button-bks>
+        <button-bks label="Cancel" @click=${this._closeRename}></button-bks>
+        ${this._renameError
+          ? html`<p role="alert">${this._renameError}</p>`
+          : nothing}
+      </form>
+    </li>`;
   }
 
   _renderAddButton() {
@@ -76,6 +125,37 @@ export class LibrarySectionBks extends LitElement {
   _closeForm() {
     this._adding = false;
     this._error = '';
+  }
+
+  _openRename(library) {
+    this._renamingId = library.id;
+    this._renameDraft = library.name;
+    this._renameError = '';
+  }
+
+  _closeRename() {
+    this._renamingId = null;
+    this._renameError = '';
+  }
+
+  async _handleRename(event, library) {
+    event.preventDefault();
+    const name = this._renameDraft.trim();
+    if (!name) {
+      this._renameError = 'Enter a name for the library.';
+      return;
+    }
+
+    this._renaming = true;
+    try {
+      await renameLibrary(library.id, name);
+      this._closeRename();
+      this.librariesTask.run();
+    } catch (error) {
+      this._renameError = error.message;
+    } finally {
+      this._renaming = false;
+    }
   }
 
   async _handleCreate(event) {

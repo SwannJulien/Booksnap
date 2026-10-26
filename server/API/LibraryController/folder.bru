@@ -8,12 +8,16 @@ auth {
 }
 
 docs {
-    GET  /libraries   admin
-    POST /libraries   admin
+    GET  /libraries        admin
+    POST /libraries        admin
+    PUT  /libraries/{id}   admin
 
   The school's libraries, sorted by name ignoring case. A librarian or a student
   gets 403.
 
   POST takes { name }: surrounding spaces are removed, 255 characters at most (400
   otherwise), and 409 if a library already bears that name, case aside.
+
+  PUT takes { name } with the same rules and the same 409 as POST. Changing only the
+  case of a library's own name is allowed. 404 if the id is unknown.
 }

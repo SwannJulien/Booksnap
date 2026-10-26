@@ -24,6 +24,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -195,6 +196,102 @@ class LibraryTest {
                 .hasMessageContaining("null value in column \"name\"");
     }
 
+    @Test
+    @DisplayName("US-03: the API renames the library")
+    void renamesTheLibrary() throws Exception {
+        long primary = libraryId("Primary");
+
+        mockMvc.perform(renameAsAdmin(primary, "  Primary School  "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(primary))
+                .andExpect(jsonPath("$.name").value("Primary School"));
+
+        assertThat(storedName(primary)).isEqualTo("Primary School");
+    }
+
+    @Test
+    @DisplayName("US-03: copies follow the new name")
+    void copiesFollowTheNewName() throws Exception {
+        long preschool = libraryId("Preschool");
+        long copyId = jdbcTemplate.queryForObject(
+                "SELECT id FROM copy WHERE library_id = ? AND deleted_at IS NULL LIMIT 1", Long.class, preschool);
+
+        mockMvc.perform(renameAsAdmin(preschool, "Nursery"))
+                .andExpect(status().isOk());
+
+        assertThat(jdbcTemplate.queryForObject("SELECT library_id FROM copy WHERE id = ?", Long.class, copyId))
+                .isEqualTo(preschool);
+        mockMvc.perform(get("/api/v1/copies/" + copyId).with(user("admin@booksnap.net").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.library.id").value(preschool))
+                .andExpect(jsonPath("$.library.name").value("Nursery"));
+    }
+
+    @Test
+    @DisplayName("US-03: renaming to a taken name is refused")
+    void refusesRenamingToATakenName() throws Exception {
+        long primary = libraryId("Primary");
+
+        mockMvc.perform(renameAsAdmin(primary, "preschool"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A library named \"Preschool\" already exists."));
+
+        assertThat(storedName(primary)).isEqualTo("Primary");
+    }
+
+    @Test
+    @DisplayName("US-03: changing only the case of its own name")
+    void changesOnlyTheCaseOfItsOwnName() throws Exception {
+        long primary = libraryId("Primary");
+        jdbcTemplate.update("UPDATE library SET name = 'primary' WHERE id = ?", primary);
+
+        mockMvc.perform(renameAsAdmin(primary, "Primary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Primary"));
+
+        assertThat(storedName(primary)).isEqualTo("Primary");
+    }
+
+    @Test
+    @DisplayName("US-03: empty or too long name refused by the API")
+    void refusesAnEmptyOrTooLongRename() throws Exception {
+        long primary = libraryId("Primary");
+        List<String> bodies = List.of("{}", "{\"name\":\"\"}", "{\"name\":\"   \"}", "{\"name\":\"" + "a".repeat(256) + "\"}");
+
+        for (String body : bodies) {
+            mockMvc.perform(put(LIBRARIES + "/" + primary)
+                            .with(user("admin@booksnap.net").roles("ADMIN"))
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest());
+        }
+
+        assertThat(storedName(primary)).isEqualTo("Primary");
+    }
+
+    @Test
+    @DisplayName("US-03: unknown library")
+    void refusesRenamingAnUnknownLibrary() throws Exception {
+        mockMvc.perform(renameAsAdmin(999999999L, "Anything"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Library not found: 999999999"));
+    }
+
+    @Test
+    @DisplayName("US-03: administrator only")
+    void renamingIsReservedToTheAdministrator() throws Exception {
+        long primary = libraryId("Primary");
+
+        mockMvc.perform(rename(primary, "Secondary").with(user("librarian@booksnap.net").roles("LIBRARIAN")))
+                .andExpect(status().isForbidden());
+        assertThat(storedName(primary)).isEqualTo("Primary");
+
+        mockMvc.perform(rename(primary, "Secondary").with(user("student@booksnap.net").roles("USER")))
+                .andExpect(status().isForbidden());
+        assertThat(storedName(primary)).isEqualTo("Primary");
+    }
+
     private static MockHttpServletRequestBuilder create(String name) throws Exception {
         return post(LIBRARIES)
                 .with(csrf())
@@ -204,6 +301,21 @@ class LibraryTest {
 
     private static MockHttpServletRequestBuilder createAsAdmin(String name) throws Exception {
         return create(name).with(user("admin@booksnap.net").roles("ADMIN"));
+    }
+
+    private static MockHttpServletRequestBuilder rename(long id, String name) throws Exception {
+        return put(LIBRARIES + "/" + id)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(Map.of("name", name)));
+    }
+
+    private static MockHttpServletRequestBuilder renameAsAdmin(long id, String name) throws Exception {
+        return rename(id, name).with(user("admin@booksnap.net").roles("ADMIN"));
+    }
+
+    private long libraryId(String name) {
+        return jdbcTemplate.queryForObject("SELECT id FROM library WHERE name = ?", Long.class, name);
     }
 
     private String storedName(long id) {

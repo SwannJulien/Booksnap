@@ -206,6 +206,7 @@ public class SecurityConfig {
                 // --- Libraries -----------------------------------------------------------
                 .requestMatchers(HttpMethod.GET, "/api/v1/libraries").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.POST, "/api/v1/libraries").hasRole(ADMIN)
+                .requestMatchers(HttpMethod.PUT, "/api/v1/libraries/*").hasRole(ADMIN)
 
                 // --- Everything else -----------------------------------------------------
                 // Actuator beyond the health probe is operational data, not the school's.

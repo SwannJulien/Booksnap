@@ -5,6 +5,7 @@ import net.booksnap.domain.library.api.dto.LibraryNameRequest;
 import net.booksnap.domain.library.api.dto.LibraryResponse;
 import net.booksnap.domain.library.repository.LibraryRepository;
 import net.booksnap.exception.library.LibraryNameTakenException;
+import net.booksnap.exception.library.LibraryNotFoundException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -38,13 +39,30 @@ public class LibraryServiceImpl implements LibraryService {
 
         Library library = new Library();
         library.setName(request.name());
+        return saveCatchingNameTaken(library);
+    }
+
+    @Override
+    @Transactional
+    public LibraryResponse rename(Long id, LibraryNameRequest request) {
+        Library library = libraryRepository.findById(id).orElseThrow(() -> new LibraryNotFoundException(id));
+        libraryRepository.findByNameAndIdNot(request.name(), id).ifPresent(existing -> {
+            throw new LibraryNameTakenException(existing.getName());
+        });
+
+        // After the duplicate check: a dirty entity is flushed before the query runs, outside the try below.
+        library.setName(request.name());
+        return saveCatchingNameTaken(library);
+    }
+
+    private LibraryResponse saveCatchingNameTaken(Library library) {
         try {
             return LibraryResponse.of(libraryRepository.saveAndFlush(library));
         } catch (DataIntegrityViolationException ex) {
             // The violation aborts the transaction: the existing row can no longer be read here.
             if (ex.getCause() instanceof ConstraintViolationException violation
                     && "library_name_key".equals(violation.getConstraintName())) {
-                throw new LibraryNameTakenException(request.name());
+                throw new LibraryNameTakenException(library.getName());
             }
             throw ex;
         }

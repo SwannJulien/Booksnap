@@ -9,4 +9,6 @@ public interface LibraryService {
     List<LibraryResponse> findAll();
 
     LibraryResponse create(LibraryNameRequest request);
+
+    LibraryResponse rename(Long id, LibraryNameRequest request);
 }
