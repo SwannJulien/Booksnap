@@ -203,6 +203,9 @@ public class SecurityConfig {
                 // --- Archive -------------------------------------------------------------
                 .requestMatchers(HttpMethod.GET, "/api/v1/archive/books", "/api/v1/archive/copies").hasAnyRole(LIBRARIAN, ADMIN)
 
+                // --- Libraries -----------------------------------------------------------
+                .requestMatchers(HttpMethod.GET, "/api/v1/libraries").hasRole(ADMIN)
+
                 // --- Everything else -----------------------------------------------------
                 // Actuator beyond the health probe is operational data, not the school's.
                 .requestMatchers("/actuator/**").hasRole(ADMIN)

@@ -1,5 +1,7 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { settingsView } from './settings-view-styles.js';
+import { isAdmin } from '../../auth-state.js';
+import '../../features/library/library-section-bks/library-section-bks.js';
 
 export class SettingsView extends LitElement {
   static styles = [settingsView];
@@ -7,7 +9,10 @@ export class SettingsView extends LitElement {
   static properties = {};
 
   render() {
-    return html` <h1>Settings View</h1> `;
+    return html`
+      <h1>Settings View</h1>
+      ${isAdmin() ? html`<library-section-bks></library-section-bks>` : nothing}
+    `;
   }
 }
 

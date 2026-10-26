@@ -5,6 +5,16 @@ code reviews use, each with one meaning.
 
 ## Language
 
+### Libraries
+
+**Library**:
+One site of the school that uses BookSnap. A library owns copies, holds,
+students and librarians; it does not own books — a book is one record shared by
+every library, and "a library's books" are the books with at least one copy
+there. Created by an administrator only.
+_Avoid_: site, branch, school
+_In code_: `library`
+
 ### Lifecycle journal
 
 **History**:

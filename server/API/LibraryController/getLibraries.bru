@@ -1,0 +1,16 @@
+meta {
+  name: getLibraries
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{vipa}}/api/v1/libraries
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
