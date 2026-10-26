@@ -8,10 +8,10 @@ auth {
 }
 
 docs {
-    GET  /archive/books    admin only
-    GET  /archive/copies   admin only
+    GET  /archive/books    librarian, admin
+    GET  /archive/copies   librarian, admin
 
   Logically deleted books, and copies deleted on their own, most recently deleted first.
-  The journal behind them names borrowers, hence admin only: a librarian or a student
+  The journal behind them names borrowers, hence staff only: a student
   gets 403. The timeline of any one of them is `getBookHistory` / `getCopyHistory`.
 }

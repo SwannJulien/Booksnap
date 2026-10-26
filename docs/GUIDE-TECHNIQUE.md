@@ -100,7 +100,7 @@ docker compose up --build
 
 > Les deux frontends n'écoutent **pas** sur le même port. Le conteneur nginx de
 > `docker compose up` est publié sur `3000` ; le serveur de dév Vite, lui, est fixé sur
-> `5000` (contrainte de la webview Replit, voir `.replit`). Au quotidien seule la base
+> `5000`. Au quotidien seule la base
 > vient de compose : c'est donc `5000` qu'on ouvre.
 
 ### Connexion à la base de données via pgAdmin

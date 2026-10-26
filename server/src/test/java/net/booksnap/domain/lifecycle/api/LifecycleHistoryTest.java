@@ -280,16 +280,24 @@ class LifecycleHistoryTest {
     }
 
     @Test
-    @DisplayName("US-05: a librarian can reach neither the history nor the archive")
-    void librarianIsRefusedEverywhere() throws Exception {
-        for (String path : restrictedPaths()) {
+    @DisplayName("US-06: a librarian reads the archive and the histories")
+    void librarianReadsArchiveAndHistories() throws Exception {
+        BookFixture book = scenario.createBook("US06 librarian");
+        entityManager.flush();
+        List<String> paths = List.of(
+                "/api/v1/books/" + book.bookId() + "/history",
+                "/api/v1/copies/" + book.copyId() + "/history",
+                "/api/v1/archive/books",
+                "/api/v1/archive/copies");
+
+        for (String path : paths) {
             mockMvc.perform(get(path).with(user(LIBRARIAN).roles("LIBRARIAN")))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isOk());
         }
     }
 
     @Test
-    @DisplayName("US-05: a student cannot either")
+    @DisplayName("US-06: a student still cannot reach them")
     void studentIsRefusedEverywhere() throws Exception {
         for (String path : restrictedPaths()) {
             mockMvc.perform(get(path).with(user("student@booksnap.net").roles("USER")))

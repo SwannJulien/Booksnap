@@ -26,3 +26,33 @@ export function daysLate(endDateStr) {
   today.setHours(0, 0, 0, 0);
   return Math.max(1, Math.round((today - parseDate(endDateStr)) / MS_PER_DAY));
 }
+
+function parseDateTime(dateTimeStr) {
+  const [datePart, timePart = ''] = dateTimeStr.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours = 0, minutes = 0] = timePart.split(':').map(Number);
+  return new Date(year, month - 1, day, hours, minutes);
+}
+
+/** `2024-04-02T11:30:00` -> `Apr 2, 2024, 11:30` */
+export function formatDateTime(dateTimeStr) {
+  if (!dateTimeStr) return '';
+  return parseDateTime(dateTimeStr).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+}
+
+/** `2023-01-09T12:00:00` -> `Jan 9, 2023` */
+export function formatDay(dateTimeStr) {
+  if (!dateTimeStr) return '';
+  return parseDate(dateTimeStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}

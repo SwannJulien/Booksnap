@@ -23,6 +23,7 @@ import '../../features/borrowing/return-modal-bks/return-modal-bks.js';
 import '../../features/hold/hold-modal-bks/hold-modal-bks.js';
 import '../../components/info-modal-bks/info-modal-bks.js';
 import '../../features/book/deletion-blockers-bks/deletion-blockers-bks.js';
+import '../../features/lifecycle/history-modal-bks/history-modal-bks.js';
 
 export class CatalogView extends LitElement {
   static styles = [catalogView, sharedStyles];
@@ -42,6 +43,7 @@ export class CatalogView extends LitElement {
     showCreateModal: { type: Boolean, state: true },
     updateError: { type: String, state: true },
     deleteRefusal: { type: Object, state: true },
+    historyTarget: { type: Object, state: true },
   };
 
   _search = new SearchController(this, {
@@ -69,6 +71,7 @@ export class CatalogView extends LitElement {
     this.showCreateModal = false;
     this.updateError = '';
     this.deleteRefusal = null;
+    this.historyTarget = null;
   }
 
   booksTask = new Task(this, {
@@ -87,7 +90,7 @@ export class CatalogView extends LitElement {
       ${this._createBookBksTpl} ${this._qrModalTpl} ${this._updateCopyModalTpl}
       ${this._deleteCopyModalTpl} ${this._loanModalTpl} ${this._returnModalTpl}
       ${this._holdModalTpl} ${this._deleteRefusalTpl}
-      ${this._copyStatusModalTpl}
+      ${this._copyStatusModalTpl} ${this._historyModalTpl}
     `;
   }
 
@@ -278,6 +281,17 @@ export class CatalogView extends LitElement {
         break;
       case 'hold-book':
         this._handleHoldBook(data);
+        break;
+      case 'view-book-history':
+        this.historyTarget = { kind: 'book', id: data.id, title: data.title };
+        break;
+      case 'view-copy-history':
+        this.historyTarget = {
+          kind: 'copy',
+          id: data.id,
+          title: data.bookTitle,
+          identificationCode: data.section.id,
+        };
         break;
       default:
         break;
@@ -506,6 +520,20 @@ export class CatalogView extends LitElement {
       this.copyToChangeStatus = null;
     }
     this._refreshCopiesOf(bookId);
+  }
+
+  get _historyModalTpl() {
+    return html`
+      <history-modal-bks
+        ?open=${!!this.historyTarget}
+        .target=${this.historyTarget}
+        @modal-close=${this._handleHistoryModalClose}
+      ></history-modal-bks>
+    `;
+  }
+
+  _handleHistoryModalClose() {
+    this.historyTarget = null;
   }
 
   get _deleteCopyModalTpl() {

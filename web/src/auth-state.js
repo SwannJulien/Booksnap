@@ -73,6 +73,13 @@ export function isAdmin() {
   return authenticatedUser?.role === 'admin';
 }
 
+export function isStaff() {
+  return (
+    authenticatedUser?.role === 'librarian' ||
+    authenticatedUser?.role === 'admin'
+  );
+}
+
 /**
  * Records the account a successful sign-in returned.
  *

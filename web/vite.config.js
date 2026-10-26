@@ -44,7 +44,7 @@ export default defineConfig({
     host: true, // Listen on all interfaces (0.0.0.0)
     allowedHosts: true,
 
-    // Same-origin API proxy for development and the production preview server.
+    // Same-origin API proxy for development and the preview server.
     proxy: apiProxy,
   },
 

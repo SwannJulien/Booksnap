@@ -13,6 +13,7 @@ export default defineConfig({
   testDir: './test/e2e',
   testMatch: '**/*.spec.js',
   retries: 0,
+  workers: 1,
   forbidOnly: true,
   globalSetup: './test/e2e/support/global-setup.js',
   reporter: [['list'], ['html', { open: 'never' }]],

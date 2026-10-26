@@ -23,7 +23,7 @@ Used by the `map` skill. Edit freely — these are read, not enforced.
 | db | `db.md` | `server/src/main/resources/db/migration/**` | `docker exec booksnap-postgres sh -c 'pg_dump -s -U "$POSTGRES_USER" "$POSTGRES_DB"'` |
 | api | `api.md` | `server/src/main/java/net/booksnap/**`, `server/src/main/resources/application*.properties` | none — no springdoc/OpenAPI dependency in `server/pom.xml`; read the controllers |
 | front | `front.md` | `web/src/**`, `web/index.html`, `web/vite.config.js` | none |
-| deploy | `deploy.md` | `docker-compose.yml`, `server/Dockerfile`, `web/Dockerfile`, `web/nginx.conf`, `scripts/**`, `server/scripts/**`, `.env.example`, `.replit`, `replit*.sh`, `replit.md`, `server/src/main/resources/application*.properties`, `server/pom.xml`, `web/package.json` | none |
+| deploy | `deploy.md` | `docker-compose.yml`, `server/Dockerfile`, `web/Dockerfile`, `web/nginx.conf`, `server/scripts/**`, `.env.example`, `server/src/main/resources/application*.properties`, `server/pom.xml`, `web/package.json` | none |
 
 Four maps, matching the four layers that actually exist here. Notes on the
 globs, since Stage 1 uses them to decide what regenerates:
@@ -74,7 +74,7 @@ the cap:
 | db | foreign-key graph, clustered by domain (catalog / lending / identity) if it exceeds the cap |
 | api | the Spring Security filter chain, from request through CSRF and session auth to `GlobalExceptionHandler` |
 | front | route → view → endpoint data flow for `/catalog` — the application's central screen |
-| deploy | source → compose build → the three environments (IDE dev, compose, Replit) |
+| deploy | source → compose build → the two environments (IDE dev, compose) |
 
 ## Commands that need permission
 
@@ -97,8 +97,7 @@ the cap:
   pipeline output, including stories not yet built. The maps record only what
   exists in the code today.
 - **CI.** There is none: no `.github/`, no `.gitlab-ci.yml`. `deploy.md` covers
-  the Docker Compose stack, the Replit configuration and the production scripts,
-  and says so in its `Gaps`.
+  the Docker Compose stack and says so in its `Gaps`.
 - **Bruno API collections** (`server/API/**`). They mirror the endpoints rather
   than defining them; `api.md` is derived from the controllers. A missing
   `.bru` file is a convention gap, not a map gap.
