@@ -18,6 +18,10 @@ public final class BookSpecifications {
 
     private BookSpecifications() {}
 
+    public static Specification<Book> notDeleted() {
+        return (root, cq, cb) -> cb.isNull(root.get("deletedAt"));
+    }
+
     public static Specification<Book> textSearch(String query) {
         return (root, cq, cb) -> {
             String pattern = "%" + query.toLowerCase() + "%";
@@ -45,7 +49,22 @@ public final class BookSpecifications {
             subquery.select(copy.get("id"))
                     .where(
                             cb.equal(copy.get("book"), root),
-                            copy.get("status").in(statuses)
+                            copy.get("status").in(statuses),
+                            cb.isNull(copy.get("deletedAt"))
+                    );
+            return cb.exists(subquery);
+        };
+    }
+
+    public static Specification<Book> hasLiveCopy() {
+        return (root, cq, cb) -> {
+            Subquery<Long> subquery = cq.subquery(Long.class);
+            Root<Copy> copy = subquery.from(Copy.class);
+            subquery.select(copy.get("id"))
+                    .where(
+                            cb.equal(copy.get("book"), root),
+                            cb.notEqual(copy.get("status"), Status.lost),
+                            cb.isNull(copy.get("deletedAt"))
                     );
             return cb.exists(subquery);
         };

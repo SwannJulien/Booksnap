@@ -84,7 +84,10 @@ une bibliothèque. Conséquence importante en [§4](#4-règles-dautorisation-non
 | Créer un livre | `POST /books` | ❌ | ✅ | ✅ |
 | Modifier une notice | `PUT /books/{id}` | ❌ | ✅ | ✅ |
 | **Supprimer un livre** | `DELETE /books/{id}` | ❌ | ❌ | ✅ |
-| Créer / modifier / supprimer une copie | `POST`,`PUT`,`DELETE /copies/*` | ❌ | ✅ scopé | ✅ |
+| Créer / modifier une copie | `POST`,`PUT /copies/*` | ❌ | ✅ scopé | ✅ |
+| **Supprimer une copie** | `DELETE /copies/{id}` | ❌ | ❌ | ✅ |
+| Consulter l'historique d'un livre ou d'une copie | `GET /books/{id}/history`, `/copies/{id}/history` | ❌ | ✅ | ✅ |
+| Consulter l'archive des livres et des copies supprimés | `GET /archive/books`, `/archive/copies` | ❌ | ✅ | ✅ |
 | Générer le QR code d'une copie | `GET /copies/{id}/qrcode` | ❌ | ✅ scopé | ✅ |
 | Créer un emprunt | `POST /borrowings` | ❌ | ✅ scopé | ✅ |
 | Enregistrer un retour | `POST /borrowings/{id}/return` | ❌ | ✅ scopé | ✅ |
@@ -109,19 +112,26 @@ une bibliothèque. Conséquence importante en [§4](#4-règles-dautorisation-non
 
 ## 4. Règles d'autorisation non évidentes
 
-### 4.1 `DELETE /books/{id}` est réservé à l'`ADMIN`
+### 4.1 Supprimer un livre ou une copie est réservé à l'`ADMIN`
 
-La contrainte `copy_book_id_fkey` est `ON DELETE CASCADE` : supprimer une notice
-supprime **toutes** ses copies, dans **toutes** les bibliothèques. Un
-bibliothécaire du Primary pourrait ainsi effacer le rayon du Preschool.
+Pour le **livre**, la portée suffit à l'expliquer : supprimer une notice retire
+**toutes** ses copies, dans **toutes** les bibliothèques. Un bibliothécaire du
+Primary retirerait ainsi le rayon du Preschool. Un livre étant partagé (voir
+[§2](#2-portée--le-rattachement-aux-bibliothèques)), aucune portée par
+bibliothèque ne peut rendre cette action sûre pour un bibliothécaire : elle est
+globale, donc `ADMIN`.
 
-Un livre étant partagé (voir [§2](#2-portée--le-rattachement-aux-bibliothèques)),
-aucune portée par bibliothèque ne peut rendre cette action sûre pour un
-bibliothécaire. Elle est donc globale, donc `ADMIN`.
+Pour la **copie**, la raison est venue avec US-01. La suppression y est désormais
+logique (`deleted_at`, [règles structurelles §2](REGLES-METIER-STRUCTURE.md)) : elle
+ne rencontre plus de mur de clé étrangère, donc plus rien ne protège **par
+accident** un emprunt vieux de trois ans. Retirer une copie du fonds devient une
+décision sur l'archive, et non un geste de comptoir.
 
-> Voir aussi [règles structurelles §2](REGLES-METIER-STRUCTURE.md) : cette
-> suppression est de toute façon **bloquée** aujourd'hui dès qu'une copie a été
-> empruntée.
+Le bibliothécaire garde le geste de comptoir qui lui revient : faire passer une
+copie `available`/`damaged` à `lost`, ce qui la sort des rayons sans rien effacer,
+et la repasser à `available` quand elle est retrouvée. Il peut aussi signaler une
+copie `available` comme `damaged` (qui reste empruntable) et la remettre en état.
+Un journal des suppressions aurait expliqué après coup ; il n'aurait rien empêché.
 
 ### 4.2 Déplacer une copie exige les droits sur les deux bibliothèques
 

@@ -60,19 +60,25 @@ export async function searchBooks(
 }
 
 export async function deleteBook(bookId) {
-  try {
-    const response = await apiFetch(
-      `${API_BASE_URL}${API_ROUTES.BOOKS}/${bookId}`,
-      {
-        method: 'DELETE',
-      },
-    );
+  const response = await apiFetch(
+    `${API_BASE_URL}${API_ROUTES.BOOKS}/${bookId}`,
+    {
+      method: 'DELETE',
+    },
+  );
 
-    const { status } = response;
-    return status;
-  } catch (error) {
-    throw new Error(`Failed to delete book: ${error}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to delete book: ${response.status}`,
+    );
+    error.status = response.status;
+    error.activeBorrowings = errorData.activeBorrowings ?? [];
+    error.activeHolds = errorData.activeHolds ?? [];
+    throw error;
   }
+
+  return response.status;
 }
 
 export async function updateBook(bookId, payload) {

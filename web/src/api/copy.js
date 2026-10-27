@@ -62,24 +62,34 @@ export async function updateCopy(copyId, payload) {
 
   if (response.status !== 204) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to update copy');
+    const error = new Error(errorData.message || 'Failed to update copy');
+    error.status = response.status;
+    error.activeBorrowings = errorData.activeBorrowings ?? [];
+    error.activeHolds = errorData.activeHolds ?? [];
+    throw error;
   }
 }
 
 export async function deleteCopy(copyId) {
-  try {
-    const response = await apiFetch(
-      `${API_BASE_URL}${API_ROUTES.COPIES}/${copyId}`,
-      {
-        method: 'DELETE',
-      },
-    );
+  const response = await apiFetch(
+    `${API_BASE_URL}${API_ROUTES.COPIES}/${copyId}`,
+    {
+      method: 'DELETE',
+    },
+  );
 
-    const { status } = response;
-    return status;
-  } catch (error) {
-    throw new Error(`Failed to delete copy: ${error}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to delete copy: ${response.status}`,
+    );
+    error.status = response.status;
+    error.activeBorrowings = errorData.activeBorrowings ?? [];
+    error.activeHolds = errorData.activeHolds ?? [];
+    throw error;
   }
+
+  return response.status;
 }
 
 export async function getCopyQrCode(copyId) {

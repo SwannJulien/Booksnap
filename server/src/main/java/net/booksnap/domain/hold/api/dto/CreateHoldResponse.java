@@ -11,6 +11,6 @@ public record CreateHoldResponse(
         Status status,
         LocalDate startDate,
         LocalDate endDate,
-        // Position in the pending queue for this book, 1 being the next to be served
+        // Position in the pending queue for this book at this library, 1 being the next to be served
         long queuePosition
 ) {}

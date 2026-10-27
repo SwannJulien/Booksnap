@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { copyTableBksStyles } from './copy-table-bks-styles.js';
 import { createCopy } from '../../../api/copy.js';
 import { formatStatus } from '../../../utils/statusFormatter.js';
+import { isAdmin, isStaff } from '../../../auth-state.js';
 import '../../../components/spinner-bks/spinner-bks.js';
 import '../../../components/dropdown-bks/dropdown-bks.js';
 
@@ -200,8 +201,10 @@ export class CopyTableBks extends LitElement {
   _getDropdownOptions(copy) {
     const data = { ...copy, bookId: this.bookId, bookTitle: this.bookTitle };
     
-    const bookHasAvailableCopy = this.copies?.some(
-      c => c.status?.toLowerCase() === 'available',
+    const libraryHasAvailableCopy = this.copies?.some(
+      c =>
+        c.library?.id === copy.library?.id &&
+        c.status?.toLowerCase() === 'available',
     );
     return [
       // Only an available copy can be lent, so the entry is hidden otherwise
@@ -238,7 +241,7 @@ export class CopyTableBks extends LitElement {
             },
           ]
         : []),
-      ...(!bookHasAvailableCopy
+      ...(!libraryHasAvailableCopy
         ? [
             {
               action: 'hold-book',
@@ -270,13 +273,28 @@ export class CopyTableBks extends LitElement {
         label: 'Update section',
         class: '',
       },
-      {
-        action: 'delete-copy',
-        data,
-        path: 'M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z',
-        label: 'Delete copy',
-        class: 'dropdown-item-danger',
-      },
+      ...(isStaff()
+        ? [
+            {
+              action: 'view-copy-history',
+              data,
+              path: 'M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z',
+              label: 'View history',
+              class: '',
+            },
+          ]
+        : []),
+      ...(isAdmin()
+        ? [
+            {
+              action: 'delete-copy',
+              data,
+              path: 'M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z',
+              label: 'Delete copy',
+              class: 'dropdown-item-danger',
+            },
+          ]
+        : []),
     ];
   }
 
@@ -287,6 +305,7 @@ export class CopyTableBks extends LitElement {
   _getStatusClass(status) {
     const s = status?.toLowerCase();
     if (s === 'available') return 'status-available';
+    if (s === 'lost') return 'status-lost';
     return 'status-borrowed';
   }
 

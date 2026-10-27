@@ -1,9 +1,9 @@
 package net.booksnap.domain.hold.service;
 
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import net.booksnap.domain.author.Author;
 import net.booksnap.domain.book.Book;
-import net.booksnap.domain.book.repository.BookRepository;
 import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.copy.Copy;
 import net.booksnap.domain.copy.repository.CopyRepository;
@@ -16,15 +16,16 @@ import net.booksnap.domain.hold.repository.HoldRepository;
 import net.booksnap.domain.library.Library;
 import net.booksnap.domain.user.User;
 import net.booksnap.domain.user.repository.UserRepository;
-import net.booksnap.exception.book.BookNotFoundException;
-import net.booksnap.exception.common.BadRequestException;
+import net.booksnap.exception.copy.CopyNotFoundException;
 import net.booksnap.exception.hold.BookHasAvailableCopyException;
 import net.booksnap.exception.hold.HoldAlreadyExistsException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,39 +34,43 @@ import java.util.stream.Collectors;
 public class HoldServiceImpl implements HoldService {
 
     private final HoldRepository holdRepository;
-    private final BookRepository bookRepository;
     private final CopyRepository copyRepository;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     public HoldServiceImpl(HoldRepository holdRepository,
-                           BookRepository bookRepository,
                            CopyRepository copyRepository,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           EntityManager entityManager) {
         this.holdRepository = holdRepository;
-        this.bookRepository = bookRepository;
         this.copyRepository = copyRepository;
         this.userRepository = userRepository;
+        this.entityManager = entityManager;
     }
 
     /**
-     * Queues a student for a book. A hold is only allowed once the book is fully out:
-     * if any copy is available it must be borrowed instead. The hold is created 'pending'
-     * with no copy attached — a copy is only assigned later, when one is returned and this
-     * hold reaches the head of the queue (see BorrowingServiceImpl#promoteNextPendingHold).
+     * Queues a student for the book of the given copy, at that copy's library. A hold is only
+     * allowed once every copy of the book at that library is out: if one is available it must
+     * be borrowed instead. The hold is created 'pending' with no copy attached — a copy is
+     * only assigned later, when one is returned and this hold reaches the head of the queue
+     * (see #promoteNextPendingHold).
      */
     @Transactional
     public CreateHoldResponse createHold(CreateHoldRequest createHoldRequest) {
-        Book book = bookRepository.findById(createHoldRequest.bookId())
-                .orElseThrow(() -> new BookNotFoundException(createHoldRequest.bookId()));
+        Copy copy = copyRepository.findByIdAndDeletedAtIsNull(createHoldRequest.copyId())
+                .orElseThrow(() -> new CopyNotFoundException(createHoldRequest.copyId()));
 
         User user = userRepository.findById(createHoldRequest.userId())
                 .orElseThrow(() -> new UserNotFoundException(createHoldRequest.userId()));
 
-        // A book can only be held once every copy is out: an available copy is meant to be
-        // borrowed, not reserved (a pending hold would never get promoted otherwise).
-        if (copyRepository.countByBookIdAndStatus(
-                book.getId(), net.booksnap.domain.copy.Status.available) > 0) {
-            throw new BookHasAvailableCopyException(book.getId());
+        Book book = copy.getBook();
+        Library library = copy.getLibrary();
+
+        // An available copy is meant to be borrowed, not reserved (a pending hold would never
+        // get promoted otherwise). Counted in the database: the entity's status can be stale.
+        if (copyRepository.countByBookIdAndLibraryIdAndStatusAndDeletedAtIsNull(
+                book.getId(), library.getId(), net.booksnap.domain.copy.Status.available) > 0) {
+            throw new BookHasAvailableCopyException(library.getName());
         }
 
         // A student may only queue once per book (also guarded by a unique DB index)
@@ -73,14 +78,6 @@ public class HoldServiceImpl implements HoldService {
                 user.getId(), book.getId(), List.of(Status.pending, Status.active))) {
             throw new HoldAlreadyExistsException(user.getId(), book.getId());
         }
-
-        // A hold needs a library; take it from any copy of the book. A book with no copy
-        // cannot be held, but the UI only offers this on books that already have copies.
-        Library library = copyRepository.findAllByBookId(book.getId()).stream()
-                .findFirst()
-                .map(Copy::getLibrary)
-                .orElseThrow(() -> new BadRequestException(
-                        "Cannot place a hold on a book that has no copies"));
 
         Hold hold = new Hold();
         hold.setBook(book);
@@ -90,7 +87,8 @@ public class HoldServiceImpl implements HoldService {
 
         Hold savedHold = holdRepository.save(hold);
 
-        long queuePosition = holdRepository.countByBookIdAndStatus(book.getId(), Status.pending);
+        long queuePosition = holdRepository.countByBookIdAndLibraryIdAndStatus(
+                book.getId(), library.getId(), Status.pending);
 
         log.info("Hold {} created for user {} on book {} (queue position {})",
                 savedHold.getId(), user.getId(), book.getId(), queuePosition);
@@ -121,6 +119,66 @@ public class HoldServiceImpl implements HoldService {
         return PagedResponse.of(holdRepository
                 .findByStatusInAndUserMatching(statuses, query, pageable)
                 .map(HoldServiceImpl::toHoldResponse));
+    }
+
+    /**
+     * Assigns a freed copy to the student who has been queued longest for that book at the
+     * copy's library.
+     * Does nothing if the copy is not available — a damaged copy stays damaged, and a
+     * copy already on hold is spoken for. The caller flushes its own write to the copy
+     * first, so the hold's trigger fires after it.
+     *
+     * @return the id of the promoted hold, or null if nobody was queued
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Long promoteNextPendingHold(Copy copy) {
+        if (copy.getStatus() != net.booksnap.domain.copy.Status.available) {
+            return null;
+        }
+
+        return holdRepository
+                .findFirstByBookIdAndLibraryIdAndStatusOrderByCreatedDateAsc(
+                        copy.getBook().getId(), copy.getLibrary().getId(), Status.pending)
+                .map(hold -> {
+                    LocalDate today = LocalDate.now();
+                    hold.setCopy(copy);
+                    hold.setStatus(Status.active);
+                    hold.setStartDate(today);
+                    hold.setEndDate(today.plusDays(copy.getLibrary().getPickupWindowDays()));
+                    holdRepository.saveAndFlush(hold);
+                    entityManager.refresh(copy);
+
+                    // TODO: notify the user (hold_ready) once NotificationService exists
+                    log.info("Hold {} promoted to active on copy {}, to collect by {}",
+                            hold.getId(), copy.getId(), hold.getEndDate());
+                    return hold.getId();
+                })
+                .orElse(null);
+    }
+
+    /**
+     * Expires an active hold nobody collected and offers its copy to the next student in
+     * line. The expiry is flushed first: the trigger frees the copy, and only a freshly
+     * read 'available' copy can be promoted onto.
+     *
+     * @return false if the hold is gone or no longer active
+     */
+    @Transactional
+    public boolean expireHold(Long holdId) {
+        Hold hold = holdRepository.findById(holdId)
+                .filter(h -> h.getStatus() == Status.active)
+                .orElse(null);
+        if (hold == null) {
+            return false;
+        }
+
+        hold.setStatus(Status.expired);
+        holdRepository.saveAndFlush(hold);
+
+        Copy copy = hold.getCopy();
+        entityManager.refresh(copy);
+        promoteNextPendingHold(copy);
+        return true;
     }
 
     private static HoldResponse toHoldResponse(Hold hold) {

@@ -1,7 +1,7 @@
 package net.booksnap.exception.hold;
 
 public class BookHasAvailableCopyException extends RuntimeException {
-    public BookHasAvailableCopyException(Long bookId) {
-        super("Cannot place a hold on book " + bookId + ": a copy is available for borrowing");
+    public BookHasAvailableCopyException(String libraryName) {
+        super("A copy of this book is available at " + libraryName + ": borrow it instead.");
     }
 }

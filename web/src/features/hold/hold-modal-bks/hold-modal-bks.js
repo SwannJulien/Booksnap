@@ -15,6 +15,8 @@ export class HoldModalBks extends LitElement {
     open: { type: Boolean, reflect: true },
     bookId: { type: Number },
     bookTitle: { type: String },
+    copyId: { type: Number },
+    libraryName: { type: String },
     _step: { type: String, state: true },
     _query: { type: String, state: true },
     _students: { type: Array, state: true },
@@ -28,6 +30,8 @@ export class HoldModalBks extends LitElement {
     this.open = false;
     this.bookId = null;
     this.bookTitle = '';
+    this.copyId = null;
+    this.libraryName = '';
     this._debounceTimer = null;
     this._resetState();
   }
@@ -223,7 +227,7 @@ export class HoldModalBks extends LitElement {
 
   async _handleConfirmYes() {
     try {
-      const hold = await createHold(this.bookId, this._selectedStudent.id);
+      const hold = await createHold(this.copyId, this._selectedStudent.id);
       this._queuePosition = hold?.queuePosition ?? null;
       this._step = 'success';
       this.dispatchEvent(
@@ -234,8 +238,13 @@ export class HoldModalBks extends LitElement {
         }),
       );
     } catch (err) {
-      // 409: this student is already queued for this book — nothing to retry
-      if (err.status === 409) {
+      if (err.reason === 'copy_available') {
+        this._error = `A copy of this book is available at ${this.libraryName}: borrow it instead.`;
+        return;
+      }
+
+      // Nothing to retry: this student is already queued for this book
+      if (err.reason === 'duplicate_hold') {
         this._error = 'This student already has an active hold on this book.';
         return;
       }

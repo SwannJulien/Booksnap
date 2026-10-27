@@ -19,6 +19,12 @@ public class Library extends Auditable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name")
+    @Column(name = "name", nullable = false, columnDefinition = "citext")
     private String name;
+
+    @Column(name = "borrowing_duration_days", nullable = false, insertable = false)
+    private Integer borrowingDurationDays;
+
+    @Column(name = "pickup_window_days", nullable = false, insertable = false)
+    private Integer pickupWindowDays;
 }

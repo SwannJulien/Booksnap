@@ -6,17 +6,23 @@ import net.booksnap.exception.auth.InvalidCurrentPasswordException;
 import net.booksnap.exception.auth.NoLocalIdentityException;
 import net.booksnap.exception.auth.PasswordRejectedException;
 import net.booksnap.exception.book.BookAlreadyExistsException;
+import net.booksnap.exception.book.BookHasActiveLoanOrHoldException;
 import net.booksnap.exception.book.BookNotFoundException;
 import net.booksnap.exception.borrowing.BorrowingAlreadyReturnedException;
 import net.booksnap.exception.borrowing.BorrowingNotFoundException;
 import net.booksnap.exception.common.BadRequestException;
+import net.booksnap.exception.copy.CopyHasActiveLoanOrHoldException;
 import net.booksnap.exception.copy.CopyNotAvailableException;
 import net.booksnap.exception.copy.CopyNotFoundException;
+import net.booksnap.exception.copy.CopyStatusChangeRefusedException;
 import net.booksnap.exception.cover.CoverNotFoundException;
 import net.booksnap.exception.dewey.DeweyCodeNotFoundException;
 import net.booksnap.exception.dewey.FictionBookHasDeweyCodeException;
 import net.booksnap.exception.hold.BookHasAvailableCopyException;
+import net.booksnap.exception.hold.HoldRefusalReason;
 import net.booksnap.exception.hold.HoldAlreadyExistsException;
+import net.booksnap.exception.library.LibraryNameTakenException;
+import net.booksnap.exception.library.LibraryNotFoundException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
@@ -143,6 +149,17 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(LibraryNotFoundException.class)
+    public ResponseEntity<ApiError> handleLibraryNotFound(LibraryNotFoundException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
     @ExceptionHandler(BookNotFoundException.class)
     public ResponseEntity<ApiError> handleBookNotFound(BookNotFoundException ex, HttpServletRequest request) {
         ApiError error = new ApiError(
@@ -199,8 +216,47 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler(HoldAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleHoldAlreadyExists(HoldAlreadyExistsException ex, HttpServletRequest request) {
+    @ExceptionHandler(CopyHasActiveLoanOrHoldException.class)
+    public ResponseEntity<DeletionBlockedError> handleCopyHasActiveLoanOrHold(CopyHasActiveLoanOrHoldException ex, HttpServletRequest request) {
+        DeletionBlockedError error = new DeletionBlockedError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                ex.getActiveBorrowings(),
+                ex.getActiveHolds()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(CopyStatusChangeRefusedException.class)
+    public ResponseEntity<StatusChangeRefusedError> handleCopyStatusChangeRefused(CopyStatusChangeRefusedException ex, HttpServletRequest request) {
+        StatusChangeRefusedError error = new StatusChangeRefusedError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                ex.getActiveBorrowings(),
+                ex.getActiveHolds()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(BookHasActiveLoanOrHoldException.class)
+    public ResponseEntity<DeletionBlockedError> handleBookHasActiveLoanOrHold(BookHasActiveLoanOrHoldException ex, HttpServletRequest request) {
+        DeletionBlockedError error = new DeletionBlockedError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                ex.getActiveBorrowings(),
+                ex.getActiveHolds()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(LibraryNameTakenException.class)
+    public ResponseEntity<ApiError> handleLibraryNameTaken(LibraryNameTakenException ex, HttpServletRequest request) {
         ApiError error = new ApiError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
@@ -210,13 +266,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler(BookHasAvailableCopyException.class)
-    public ResponseEntity<ApiError> handleBookHasAvailableCopy(BookHasAvailableCopyException ex, HttpServletRequest request) {
-        ApiError error = new ApiError(
+    @ExceptionHandler(HoldAlreadyExistsException.class)
+    public ResponseEntity<HoldRefusedError> handleHoldAlreadyExists(HoldAlreadyExistsException ex, HttpServletRequest request) {
+        HoldRefusedError error = new HoldRefusedError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
-                request.getRequestURI()
+                request.getRequestURI(),
+                HoldRefusalReason.duplicate_hold
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(BookHasAvailableCopyException.class)
+    public ResponseEntity<HoldRefusedError> handleBookHasAvailableCopy(BookHasAvailableCopyException ex, HttpServletRequest request) {
+        HoldRefusedError error = new HoldRefusedError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                HoldRefusalReason.copy_available
         );
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }

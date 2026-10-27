@@ -8,6 +8,11 @@ import net.booksnap.domain.copy.api.dto.CreateCopyRequest;
 import net.booksnap.domain.copy.api.dto.CreateCopyResponse;
 import net.booksnap.domain.copy.api.dto.UpdateCopyRequest;
 import net.booksnap.domain.copy.service.CopyService;
+import net.booksnap.domain.common.dto.PagedResponse;
+import net.booksnap.domain.lifecycle.api.dto.LifecycleEventResponse;
+import net.booksnap.domain.lifecycle.service.LifecycleHistoryService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import java.util.Arrays;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -26,9 +31,11 @@ import java.util.List;
 public class CopyController {
 
     private final CopyService copyService;
+    private final LifecycleHistoryService lifecycleHistoryService;
 
-    public CopyController(CopyService copyService) {
+    public CopyController(CopyService copyService, LifecycleHistoryService lifecycleHistoryService) {
         this.copyService = copyService;
+        this.lifecycleHistoryService = lifecycleHistoryService;
     }
 
     @PostMapping
@@ -41,6 +48,12 @@ public class CopyController {
     public Object getCopy(@PathVariable Long copyId, 
                          @RequestParam(required = false) String fields) {
         return copyService.findCopyById(copyId, fields);
+    }
+
+    @GetMapping("/{copyId}/history")
+    public PagedResponse<LifecycleEventResponse> getCopyHistory(@PathVariable Long copyId,
+                                                                @PageableDefault(size = 50) Pageable pageable) {
+        return lifecycleHistoryService.findCopyHistory(copyId, pageable);
     }
 
     @GetMapping("/{copyId}/qrcode")

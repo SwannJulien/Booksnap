@@ -1,0 +1,28 @@
+meta {
+  name: updateLoanRules
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{vipa}}/api/v1/libraries/2/loan-rules
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "borrowingDurationDays": 21,
+    "pickupWindowDays": 3
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

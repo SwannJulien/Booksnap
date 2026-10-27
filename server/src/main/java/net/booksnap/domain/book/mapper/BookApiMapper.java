@@ -5,8 +5,6 @@ import net.booksnap.domain.author.AuthorRepository;
 import net.booksnap.domain.book.Book;
 import net.booksnap.domain.book.api.dto.CreateBookRequest;
 import net.booksnap.domain.book.api.dto.BookResponse;
-import net.booksnap.domain.copy.Status;
-import net.booksnap.domain.copy.repository.CopyRepository;
 import net.booksnap.domain.common.dto.AuditDTO;
 import net.booksnap.domain.dewey.DeweyCategory;
 import net.booksnap.domain.dewey.repository.DeweyCategoryRepository;
@@ -17,7 +15,6 @@ import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.Named;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.HashSet;
@@ -36,13 +33,11 @@ public abstract class BookApiMapper {
     @Autowired
     protected AuthorRepository authorRepository;
 
-    @Autowired
-    protected CopyRepository copyRepository;
-
     // Convert API request to Entity
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdDate", ignore = true)
     @Mapping(target = "lastModifiedDate", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "genres", ignore = true)
     @Mapping(target = "authors", ignore = true)
     @Mapping(target = "deweyCategory", ignore = true)
@@ -50,8 +45,22 @@ public abstract class BookApiMapper {
 
     @AfterMapping
     public void mapGenresToEntity(@MappingTarget Book book, CreateBookRequest request) {
-        if(request.genres() != null && !request.genres().isEmpty()) {
-            Set<Genre> genreEntities = request.genres().stream()
+        assignGenres(book, request.genres());
+    }
+
+    @AfterMapping
+    public void mapAuthorsToEntity(@MappingTarget Book book, CreateBookRequest request) {
+        assignAuthors(book, request.authors());
+    }
+
+    @AfterMapping
+    public void mapDeweyCategory(@MappingTarget Book book, CreateBookRequest request) {
+        assignDeweyCategory(book, request.codeDewey());
+    }
+
+    public void assignGenres(Book book, Set<String> genres) {
+        if(genres != null && !genres.isEmpty()) {
+            Set<Genre> genreEntities = genres.stream()
                     .map(name -> {
                         String trimmed = name.trim();
                         return genreRepository.findByName(trimmed)
@@ -63,10 +72,9 @@ public abstract class BookApiMapper {
         }
     }
 
-    @AfterMapping
-    public void mapAuthorsToEntity(@MappingTarget Book book, CreateBookRequest request) {
-        if(request.authors() != null && !request.authors().isEmpty()) {
-            Set<Author> authorEntities = request.authors().stream()
+    public void assignAuthors(Book book, Set<String> authors) {
+        if(authors != null && !authors.isEmpty()) {
+            Set<Author> authorEntities = authors.stream()
                     .map(name -> {
                         String trimmed = name.trim();
                         return authorRepository.findByName(trimmed)
@@ -78,10 +86,7 @@ public abstract class BookApiMapper {
         }
     }
 
-    @AfterMapping
-    public void mapDeweyCategory(@MappingTarget Book book, CreateBookRequest request) {
-        String codeDewey = request.codeDewey();
-
+    public void assignDeweyCategory(Book book, String codeDewey) {
         if (codeDewey == null || codeDewey.isBlank()) {
             book.setDeweyCategory(null);
         } else {
@@ -96,25 +101,8 @@ public abstract class BookApiMapper {
     @Mapping(target = "authors", expression = "java(mapAuthorsToSet(book.getAuthors()))")
     @Mapping(target = "audit", expression = "java(mapAuditToDTO(book))")
     @Mapping(target = "codeDewey", expression = "java(mapDeweyCode(book.getDeweyCategory()))")
-    @Mapping(target = "countCopies.totalNumberOfCopies", source = "id", qualifiedByName = "countTotalCopies")
-    @Mapping(target = "countCopies.availableCopies", source = "id", qualifiedByName = "countAvailableCopies")
+    @Mapping(target = "countCopies", ignore = true)
     public abstract BookResponse bookEntityToBookResponse(Book book);
-
-    @Named("countTotalCopies")
-    protected long countTotalCopies(Long bookId) {
-        if (bookId == null) {
-            return 0;
-        }
-        return copyRepository.countByBookId(bookId);
-    }
-
-    @Named("countAvailableCopies")
-    protected long countAvailableCopies(Long bookId) {
-        if (bookId == null) {
-            return 0;
-        }
-        return copyRepository.countByBookIdAndStatus(bookId, Status.available);
-    }
 
     protected Set<String> mapGenresToSet(Set<Genre> genres) {
         if (genres == null || genres.isEmpty()) {

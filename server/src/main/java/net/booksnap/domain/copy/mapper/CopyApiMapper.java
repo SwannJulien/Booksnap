@@ -62,6 +62,7 @@ public abstract class CopyApiMapper {
     @Mapping(target = "book", ignore = true)
     @Mapping(target = "library", ignore = true)
     @Mapping(target = "lastModifiedDate", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "status", expression = "java(mapStatus(request.status()))")
     public abstract Copy createRequestToCopy(CreateCopyRequest request);
 

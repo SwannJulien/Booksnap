@@ -13,6 +13,7 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const API_ROUTES = {
+  ARCHIVE: '/api/v1/archive',
   BOOKS: '/api/v1/books',
   BORROWINGS: '/api/v1/borrowings',
   COVERS: '/api/v1/covers',
@@ -21,6 +22,7 @@ export const API_ROUTES = {
   DEWEY: '/api/v1/dewey',
   GENRES: '/api/v1/genres',
   HOLDS: '/api/v1/holds',
+  LIBRARIES: '/api/v1/libraries',
   LOGIN: '/api/v1/auth/login',
   // Handled by Spring Security's logout filter, not by AuthController — the path is the
   // one declared in SecurityConfig, and changing it here alone answers 404.

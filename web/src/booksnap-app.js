@@ -6,6 +6,7 @@ import {
   clearAuthenticatedUser,
   getAuthenticatedUser,
   isAuthenticated,
+  isStaff,
   loadSession,
   rememberDestination,
   rememberSessionExpired,
@@ -100,6 +101,11 @@ class BooksnapApp extends LitElement {
         '/analytics',
         'analytics-view',
         () => import('./views/analytics-view/analytics-view.js'),
+      ),
+      this._protectedRoute(
+        '/archive',
+        'archive-view',
+        () => import('./views/archive-view/archive-view.js'),
       ),
       this._protectedRoute(
         '/settings',
@@ -236,6 +242,11 @@ class BooksnapApp extends LitElement {
     // this the one place the name has to be refreshed, and saves an event the login view
     // would otherwise have to remember to fire.
     this._currentUser = getAuthenticatedUser();
+    // The route action ran while _currentUser could still be null, and the Archive link
+    // only exists once it is set: it has to be marked after that render.
+    this.updateComplete.then(() =>
+      this._setActiveEntry(event.detail.location.pathname),
+    );
   };
 
   /**
@@ -529,6 +540,21 @@ class BooksnapApp extends LitElement {
               <span>Analytics</span>
             </a>
           </li>
+          ${isStaff()
+            ? html`<li>
+                <a href="/archive" @click=${this.toggleActive}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                  >
+                    <path
+                      d="M200-80q-33 0-56.5-23.5T120-160v-451q-18-11-29-28.5T80-680v-120q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v120q0 23-11 40.5T840-611v451q0 33-23.5 56.5T760-80H200Zm0-520v440h560v-440H200Zm-40-80h640v-120H160v120Zm200 280h240v-80H360v80Zm120 20Z"
+                    />
+                  </svg>
+                  <span>Archive</span>
+                </a>
+              </li>`
+            : ''}
           <li class="divider"></li>
           <li>
             <a href="/settings" @click=${this.toggleActive}>

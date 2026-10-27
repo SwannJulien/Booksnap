@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { Task } from '@lit/task';
 import { catalogView } from './catalog-view-styles.js';
 import { sharedStyles } from '../../shared-styles.js';
@@ -16,10 +16,14 @@ import '../../features/copy/copy-qr-modal-bks/copy-qr-modal-bks.js';
 import '../../features/book/delete-book-modal-bks/delete-book-modal-bks.js';
 import '../../features/copy/copy-section-modal-bks/copy-section-modal-bks.js';
 import '../../features/copy/delete-copy-modal-bks/delete-copy-modal-bks.js';
+import '../../features/copy/copy-status-modal-bks/copy-status-modal-bks.js';
 import '../../features/book/create-book-bks/create-book-bks.js';
 import '../../features/borrowing/loan-modal-bks/loan-modal-bks.js';
 import '../../features/borrowing/return-modal-bks/return-modal-bks.js';
 import '../../features/hold/hold-modal-bks/hold-modal-bks.js';
+import '../../components/info-modal-bks/info-modal-bks.js';
+import '../../features/book/deletion-blockers-bks/deletion-blockers-bks.js';
+import '../../features/lifecycle/history-modal-bks/history-modal-bks.js';
 
 export class CatalogView extends LitElement {
   static styles = [catalogView, sharedStyles];
@@ -32,11 +36,14 @@ export class CatalogView extends LitElement {
     qrCopy: { type: Object, state: true },
     copyToUpdate: { type: Object, state: true },
     copyToDelete: { type: Object, state: true },
+    copyToChangeStatus: { type: Object, state: true },
     copyToBorrow: { type: Object, state: true },
     borrowingToReturn: { type: Object, state: true },
     bookToHold: { type: Object, state: true },
     showCreateModal: { type: Boolean, state: true },
     updateError: { type: String, state: true },
+    deleteRefusal: { type: Object, state: true },
+    historyTarget: { type: Object, state: true },
   };
 
   _search = new SearchController(this, {
@@ -57,11 +64,14 @@ export class CatalogView extends LitElement {
     this.qrCopy = null;
     this.copyToUpdate = null;
     this.copyToDelete = null;
+    this.copyToChangeStatus = null;
     this.copyToBorrow = null;
     this.borrowingToReturn = null;
     this.bookToHold = null;
     this.showCreateModal = false;
     this.updateError = '';
+    this.deleteRefusal = null;
+    this.historyTarget = null;
   }
 
   booksTask = new Task(this, {
@@ -79,8 +89,47 @@ export class CatalogView extends LitElement {
       ${this._deleteModalTpl} ${this._updateModalTpl} ${this._createModalTpl}
       ${this._createBookBksTpl} ${this._qrModalTpl} ${this._updateCopyModalTpl}
       ${this._deleteCopyModalTpl} ${this._loanModalTpl} ${this._returnModalTpl}
-      ${this._holdModalTpl}
+      ${this._holdModalTpl} ${this._deleteRefusalTpl}
+      ${this._copyStatusModalTpl} ${this._historyModalTpl}
     `;
+  }
+
+  get _deleteRefusalTpl() {
+    const { activeBorrowings = [], activeHolds = [] } =
+      this.deleteRefusal ?? {};
+    const hasBlockers = activeBorrowings.length > 0 || activeHolds.length > 0;
+
+    return html`
+      <info-modal-bks
+        ?open=${!!this.deleteRefusal}
+        .heading=${this.deleteRefusal?.heading ?? ''}
+        .message=${hasBlockers ? '' : (this.deleteRefusal?.message ?? '')}
+        @modal-close=${this._handleDeleteRefusalClose}
+      >
+        ${hasBlockers
+          ? html`<deletion-blockers-bks
+              .activeBorrowings=${activeBorrowings}
+              .activeHolds=${activeHolds}
+            ></deletion-blockers-bks>`
+          : nothing}
+      </info-modal-bks>
+    `;
+  }
+
+  // Dismiss the confirmation here so only one modal-bks is on screen
+  _handleDeleteRefused(e) {
+    this.bookToDelete = null;
+    this.copyToDelete = null;
+    this.deleteRefusal = {
+      heading: 'Deletion refused',
+      message: e.detail.message,
+      activeBorrowings: e.detail.activeBorrowings,
+      activeHolds: e.detail.activeHolds,
+    };
+  }
+
+  _handleDeleteRefusalClose() {
+    this.deleteRefusal = null;
   }
 
   get _deleteModalTpl() {
@@ -90,6 +139,7 @@ export class CatalogView extends LitElement {
         .book=${this.bookToDelete}
         @modal-close=${this._handleDeleteModalClose}
         @book-deleted=${this._handleBookDeleted}
+        @delete-refused=${this._handleDeleteRefused}
       ></delete-book-modal-bks>
     `;
   }
@@ -216,6 +266,9 @@ export class CatalogView extends LitElement {
       case 'update-section':
         this._handleUpdateCopy(data);
         break;
+      case 'update-status':
+        this.copyToChangeStatus = data;
+        break;
       case 'delete-copy':
         this._handleDeleteCopy(data);
         break;
@@ -228,6 +281,17 @@ export class CatalogView extends LitElement {
         break;
       case 'hold-book':
         this._handleHoldBook(data);
+        break;
+      case 'view-book-history':
+        this.historyTarget = { kind: 'book', id: data.id, title: data.title };
+        break;
+      case 'view-copy-history':
+        this.historyTarget = {
+          kind: 'copy',
+          id: data.id,
+          title: data.bookTitle,
+          identificationCode: data.section.id,
+        };
         break;
       default:
         break;
@@ -365,12 +429,6 @@ export class CatalogView extends LitElement {
   }
 
   _handleBookDeleted() {
-    // The server drops the cover with the book, so the cached one is gone too
-    const isbn = this.bookToDelete?.isbn13 || this.bookToDelete?.isbn10;
-    if (isbn) {
-      this._covers.invalidate(isbn);
-    }
-
     this.bookToDelete = null;
     this._refreshList();
   }
@@ -439,6 +497,45 @@ export class CatalogView extends LitElement {
     }
   }
 
+  get _copyStatusModalTpl() {
+    return html`
+      <copy-status-modal-bks
+        ?open=${!!this.copyToChangeStatus}
+        .copy=${this.copyToChangeStatus}
+        @modal-close=${this._handleCopyStatusModalClose}
+        @copy-status-changed=${this._handleCopyStatusChanged}
+      ></copy-status-modal-bks>
+    `;
+  }
+
+  _handleCopyStatusModalClose() {
+    this.copyToChangeStatus = null;
+  }
+
+  // A copy set aside for a student keeps the modal open: the librarian has to read who it is for
+  _handleCopyStatusChanged(e) {
+    const { bookId, setAside } = e.detail;
+
+    if (!setAside) {
+      this.copyToChangeStatus = null;
+    }
+    this._refreshCopiesOf(bookId);
+  }
+
+  get _historyModalTpl() {
+    return html`
+      <history-modal-bks
+        ?open=${!!this.historyTarget}
+        .target=${this.historyTarget}
+        @modal-close=${this._handleHistoryModalClose}
+      ></history-modal-bks>
+    `;
+  }
+
+  _handleHistoryModalClose() {
+    this.historyTarget = null;
+  }
+
   get _deleteCopyModalTpl() {
     return html`
       <delete-copy-modal-bks
@@ -446,6 +543,7 @@ export class CatalogView extends LitElement {
         .copy=${this.copyToDelete}
         @modal-close=${this._handleDeleteCopyModalClose}
         @copy-deleted=${this._handleCopyDeleted}
+        @delete-refused=${this._handleDeleteRefused}
       ></delete-copy-modal-bks>
     `;
   }
@@ -580,6 +678,8 @@ export class CatalogView extends LitElement {
         ?open=${!!this.bookToHold}
         .bookId=${this.bookToHold?.bookId}
         .bookTitle=${this.bookToHold?.bookTitle}
+        .copyId=${this.bookToHold?.copyId}
+        .libraryName=${this.bookToHold?.libraryName}
         @modal-close=${this._handleHoldModalClose}
       ></hold-modal-bks>
     `;
@@ -589,6 +689,8 @@ export class CatalogView extends LitElement {
     this.bookToHold = {
       bookId: copy.bookId,
       bookTitle: copy.bookTitle,
+      copyId: copy.id,
+      libraryName: copy.library?.name,
     };
   }
 

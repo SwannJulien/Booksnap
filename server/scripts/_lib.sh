@@ -45,6 +45,15 @@ require_container() {
     fi
 }
 
+# Like require_container, for scripts that must never act on the development
+# database: --database is mandatory and may not name the container's $POSTGRES_DB.
+require_throwaway_db() {
+    [ -n "$TARGET_DB" ] || die "--database is required: this script never targets the container's default database"
+    require_container
+    [ "$TARGET_DB" != "$(docker exec "$CONTAINER" printenv POSTGRES_DB)" ] \
+        || die "$TARGET_DB is the development database; this script only works on a throwaway one"
+}
+
 # psql on the target database. Arguments are passed straight to psql, with no
 # intermediate shell: the SQL may contain parentheses, quotes and $$ without
 # any special care.

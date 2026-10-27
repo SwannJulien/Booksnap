@@ -44,6 +44,32 @@ export class BookFormBks extends LitElement {
     if (changedProperties.has('book') && this.book?.isFiction !== undefined) {
       this.isFiction = this.book.isFiction;
     }
+    if (
+      changedProperties.has('book') &&
+      this.mode === 'update' &&
+      this.book?.isFiction === false
+    ) {
+      this._loadDeweyChain(this.book.codeDewey);
+    }
+  }
+
+  async _loadDeweyChain(codeDewey) {
+    try {
+      this.deweyClasses = await getDeweyClasses();
+      if (codeDewey) {
+        // Codes are hierarchical: category 523 is in division 520, class 500
+        this.selectedClass = `${codeDewey[0]}00`;
+        this.deweyDivisions = await getDeweyDivisions(this.selectedClass);
+        this.selectedDivision = `${codeDewey.slice(0, 2)}0`;
+        this.deweyCategories = await getDeweyCategories(this.selectedDivision);
+        this.selectedCategory = codeDewey;
+      }
+    } catch (error) {
+      console.error('Failed to load Dewey classification:', error);
+    }
+    // The submit button reads form validity during render, before the selects get their values
+    await this.updateComplete;
+    this.requestUpdate();
   }
 
   updated(changedProperties) {
@@ -136,9 +162,9 @@ export class BookFormBks extends LitElement {
           id="isbn"
           type="text"
           name="isbn"
-          .defaultValue="${this.book?.identifiers?.isbn_10
-            ? this.book?.identifiers?.isbn_10
-            : this.book?.identifiers?.isbn_13 || ''}"
+          .defaultValue="${this.book?.identifiers?.isbn_10?.[0] ||
+          this.book?.identifiers?.isbn_13?.[0] ||
+          ''}"
           placeholder="ISBN 10 or ISBN 13"
           minlength="10"
           maxlength="13"
@@ -179,12 +205,12 @@ export class BookFormBks extends LitElement {
           <option value="" disabled selected hidden>
             Select Key Stage reading recommendation
           </option>
-          <option value="pre-school">Pre-school</option>
-          <option value="KS-1">KS-1</option>
-          <option value="KS-2">KS-2</option>
-          <option value="KS-3">KS-3</option>
-          <option value="KS-4">KS-4</option>
-          <option value="KS-5">KS-5</option>
+          <option value="pre_school">Pre-school</option>
+          <option value="ks_1">KS-1</option>
+          <option value="ks_2">KS-2</option>
+          <option value="ks_3">KS-3</option>
+          <option value="ks_4">KS-4</option>
+          <option value="ks_5">KS-5</option>
         </select>
 
         ${this.mode !== 'update'
@@ -232,7 +258,13 @@ export class BookFormBks extends LitElement {
       <select id="deweyClass" required @change=${this._handleClassChange}>
         <option value="" disabled selected hidden>Select a class</option>
         ${this.deweyClasses.map(
-          c => html`<option value="${c.code}">${c.code} - ${c.name}</option>`,
+          c =>
+            html`<option
+              value="${c.code}"
+              ?selected=${c.code === this.selectedClass}
+            >
+              ${c.code} - ${c.name}
+            </option>`,
         )}
       </select>
 
@@ -249,7 +281,10 @@ export class BookFormBks extends LitElement {
               </option>
               ${this.deweyDivisions.map(
                 d =>
-                  html`<option value="${d.code}">
+                  html`<option
+                    value="${d.code}"
+                    ?selected=${d.code === this.selectedDivision}
+                  >
                     ${d.code} - ${d.name}
                   </option>`,
               )}
@@ -270,7 +305,10 @@ export class BookFormBks extends LitElement {
               </option>
               ${this.deweyCategories.map(
                 c =>
-                  html`<option value="${c.code}">
+                  html`<option
+                    value="${c.code}"
+                    ?selected=${c.code === this.selectedCategory}
+                  >
                     ${c.code} - ${c.name}
                   </option>`,
               )}

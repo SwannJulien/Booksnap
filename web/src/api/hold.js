@@ -21,13 +21,13 @@ export async function getHolds({ page = 1, size = 10, q = '', status = '' } = {}
   return response.json();
 }
 
-// Places a hold on a book for a user. The hold is queued (pending) until a copy of the
-// book is returned and reaches the head of the queue.
-export async function createHold(bookId, userId) {
+// Places a hold on a copy's book for a user, queued at that copy's library (pending)
+// until a copy of the book is returned there and the hold reaches the head of the queue.
+export async function createHold(copyId, userId) {
   const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.HOLDS}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookId, userId }),
+    body: JSON.stringify({ copyId, userId }),
   });
 
   if (!response.ok) {
@@ -35,8 +35,9 @@ export async function createHold(bookId, userId) {
     const error = new Error(
       errorData.message || `Failed to create hold: ${response.status}`,
     );
-    // 409 means this student already has an active hold on this book
+    // A 409 carries a reason: 'copy_available' or 'duplicate_hold'
     error.status = response.status;
+    error.reason = errorData.reason;
     throw error;
   }
 

@@ -11,6 +11,10 @@
 
 ## testing
 /coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 ## temp folders
 /.tmp/
@@ -26,5 +30,3 @@ custom-elements.json
 # assets
 /assets/icons
 
-# Replit config
-.replit

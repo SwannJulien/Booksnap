@@ -9,6 +9,8 @@ import net.booksnap.domain.library.Library;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "copy", indexes = {
         @Index(name = "idx_copy_book_status", columnList = "book_id, status")
@@ -44,5 +46,9 @@ public class Copy extends Auditable {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     private Status status = Status.available;
+
+    // Independent of status, which the triggers own: a deleted copy stays 'available'
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
 }

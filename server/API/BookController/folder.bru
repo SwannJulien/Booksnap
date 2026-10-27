@@ -12,6 +12,7 @@ docs {
 
     GET     /books, /books/search, /books/{id}      any signed-in user
     GET     /books/{id}/copies, /books/key-stages   any signed-in user
+    GET     /books/{id}/history                     librarian, admin
     POST    /books                                  librarian, admin
     PUT     /books/{id}                             librarian, admin
     DELETE  /books/{id}                             admin only

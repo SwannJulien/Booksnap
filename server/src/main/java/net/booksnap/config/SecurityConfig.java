@@ -146,13 +146,15 @@ public class SecurityConfig {
                 // --- Books ---------------------------------------------------------------
                 .requestMatchers(HttpMethod.GET, "/api/v1/books/key-stages").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/books/search").authenticated()
+                // Before the generic reads
+                .requestMatchers(HttpMethod.GET, "/api/v1/books/*/history").hasAnyRole(LIBRARIAN, ADMIN)
                 .requestMatchers(HttpMethod.GET, "/api/v1/books/*/copies").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/books/*").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/books").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/books").hasAnyRole(LIBRARIAN, ADMIN)
                 .requestMatchers(HttpMethod.PUT, "/api/v1/books/*").hasAnyRole(LIBRARIAN, ADMIN)
-                // Admin only: the copy foreign key cascades, so deleting one shared record
-                // empties the shelves of every library at once (access rules §4.1).
+                // Admin only: a book is shared across libraries, and deletion is logical so
+                // no foreign key protects its history any more (access rules §4.1).
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/books/*").hasRole(ADMIN)
 
                 // --- Copies --------------------------------------------------------------
@@ -160,12 +162,13 @@ public class SecurityConfig {
                 // Before the plain /copies/* read below, which would otherwise open the QR
                 // code — a desk tool — to students.
                 .requestMatchers(HttpMethod.GET, "/api/v1/copies/*/qrcode").hasAnyRole(LIBRARIAN, ADMIN)
+                .requestMatchers(HttpMethod.GET, "/api/v1/copies/*/history").hasAnyRole(LIBRARIAN, ADMIN)
                 // Not in the matrix, which lists only GET /books/{id}/copies. Same payload
                 // for one copy instead of all of a book's, so it follows that line.
                 .requestMatchers(HttpMethod.GET, "/api/v1/copies/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/copies").hasAnyRole(LIBRARIAN, ADMIN)
                 .requestMatchers(HttpMethod.PUT, "/api/v1/copies/*").hasAnyRole(LIBRARIAN, ADMIN)
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/copies/*").hasAnyRole(LIBRARIAN, ADMIN)
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/copies/*").hasRole(ADMIN)
 
                 // --- Borrowings ----------------------------------------------------------
                 // All four are desk operations. There is no "my borrowings" endpoint yet
@@ -196,6 +199,17 @@ public class SecurityConfig {
                 // Name, first name and email of every active user. Staff only, and the
                 // student journey must never call it (access rules §4.4).
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/search").hasAnyRole(LIBRARIAN, ADMIN)
+
+                // --- Archive -------------------------------------------------------------
+                .requestMatchers(HttpMethod.GET, "/api/v1/archive/books", "/api/v1/archive/copies").hasAnyRole(LIBRARIAN, ADMIN)
+
+                // --- Libraries -----------------------------------------------------------
+                .requestMatchers(HttpMethod.GET, "/api/v1/libraries").hasRole(ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/v1/libraries").hasRole(ADMIN)
+                .requestMatchers(HttpMethod.PUT, "/api/v1/libraries/*").hasRole(ADMIN)
+                // Read-only Settings section for librarians, while the library list stays admin-only.
+                .requestMatchers(HttpMethod.GET, "/api/v1/libraries/loan-rules").hasAnyRole(LIBRARIAN, ADMIN)
+                .requestMatchers(HttpMethod.PUT, "/api/v1/libraries/*/loan-rules").hasRole(ADMIN)
 
                 // --- Everything else -----------------------------------------------------
                 // Actuator beyond the health probe is operational data, not the school's.

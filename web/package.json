@@ -13,7 +13,9 @@
     "lint": "eslint --ext .js,.html . --ignore-path .gitignore; prettier \"**/*.js\" --check --ignore-path .gitignore",
     "format": "eslint --ext .js,.html . --fix --ignore-path .gitignore && prettier \"**/*.js\" --write --ignore-path .gitignore",
     "prepare": "husky",
-    "analyze": "cem analyze --litelement"
+    "analyze": "cem analyze --litelement",
+    "pretest:e2e": "playwright install chromium",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@lit/task": "^1.0.3",
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.10.10",
     "@open-wc/eslint-config": "^12.0.3",
+    "@playwright/test": "^1.64.1",
     "esbuild": "^0.28.1",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.2",

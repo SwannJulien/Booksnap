@@ -1,0 +1,27 @@
+meta {
+  name: createLibrary
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{vipa}}/api/v1/libraries
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Secondary"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

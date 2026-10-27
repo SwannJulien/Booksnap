@@ -1,0 +1,20 @@
+meta {
+  name: getDeletedCopies
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{vipa}}/api/v1/archive/copies
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

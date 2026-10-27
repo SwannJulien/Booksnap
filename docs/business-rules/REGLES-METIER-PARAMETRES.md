@@ -12,7 +12,7 @@ Documents liés :
 
 ## Table des matières
 
-- [1. Principe : défaut global, surcharge par bibliothèque](#1-principe--défaut-global-surcharge-par-bibliothèque)
+- [1. Principe : des règles propres à chaque bibliothèque](#1-principe--des-règles-propres-à-chaque-bibliothèque)
 - [2. Résolution : d'où vient la bibliothèque](#2-résolution--doù-vient-la-bibliothèque)
 - [3. Liste des paramètres](#3-liste-des-paramètres)
 - [4. Règle du gel : un changement ne réécrit jamais l'existant](#4-règle-du-gel--un-changement-ne-réécrit-jamais-lexistant)
@@ -21,16 +21,12 @@ Documents liés :
 
 ---
 
-## 1. Principe : défaut global, surcharge par bibliothèque
+## 1. Principe : des règles propres à chaque bibliothèque
 
-Chaque paramètre existe en **une valeur globale** et, éventuellement, en **une
-surcharge par bibliothèque**. La résolution est toujours :
-
-```
-valeur de la bibliothèque si elle existe, sinon valeur globale
-```
-
-Une bibliothèque qui ne surcharge rien suit intégralement les défauts globaux.
+Chaque bibliothèque a **ses propres valeurs** pour chaque paramètre. Il n'existe
+aucune valeur globale, aucune surcharge, aucune résolution à deux niveaux : la
+valeur d'une bibliothèque est celle qui est enregistrée pour elle, et rien
+d'autre.
 
 Motivation : Preschool et Primary n'ont pas les mêmes besoins — une durée de
 prêt d'une semaine pour un enfant de quatre ans, deux semaines pour un
@@ -38,16 +34,16 @@ collégien.
 
 ### Stockage
 
-Table `app_setting`, avec `library_id` **nullable** : `NULL` = ligne globale.
+Colonnes de la table `library`, en jours, non nulles, bornées par une contrainte
+`CHECK` (1 à 365) :
 
-> ⚠️ **Piège :** `UNIQUE (library_id)` ne suffit **pas** à garantir une seule
-> ligne globale — PostgreSQL considère les `NULL` comme distincts, donc plusieurs
-> lignes globales pourraient coexister. Il faut un index unique partiel :
->
-> ```sql
-> CREATE UNIQUE INDEX uq_app_setting_global
->     ON app_setting ((library_id IS NULL)) WHERE library_id IS NULL;
-> ```
+| Colonne | Paramètre | Valeur de départ |
+|---|---|---|
+| `library.borrowing_duration_days` | Durée d'un emprunt | 14 |
+| `library.pickup_window_days` | Fenêtre de retrait d'une réservation `active` | 7 |
+
+Les valeurs de départ sont le `DEFAULT` de la migration `V12` : une bibliothèque
+créée par son seul nom les reçoit, et le code Java n'en porte aucune copie.
 
 ---
 
@@ -59,7 +55,7 @@ serveur**, jamais transmise par le client.
 | Paramètre | Bibliothèque dérivée de |
 |---|---|
 | Durée d'un emprunt | `copy.library_id` de la copie empruntée |
-| Fenêtre de retrait d'une réservation | `hold.library_id` |
+| Fenêtre de retrait d'une réservation | `copy.library_id` de la copie mise de côté (là où elle attend sur le rayon), pas `hold.library_id` |
 | Durée de vie d'une réservation `pending` | `hold.library_id` |
 | Nombre max d'emprunts simultanés | `users.library_id` de l'emprunteur |
 | Nombre max de réservations simultanées | `users.library_id` de l'emprunteur |
@@ -74,13 +70,18 @@ suit la bibliothèque de la personne.
 
 ## 3. Liste des paramètres
 
-### 3.1 Durées (remplacent les constantes codées en dur)
+### 3.1 Durées
 
-| Paramètre | Valeur actuelle | Où c'est codé en dur aujourd'hui |
+| Paramètre | Valeur de départ | Où c'est stocké / lu |
 |---|---|---|
-| Durée d'un emprunt | 2 semaines | `BorrowingServiceImpl.BORROWING_DURATION_WEEKS` |
-| Fenêtre de retrait d'une réservation `active` | 1 semaine | `BorrowingServiceImpl.HOLD_PICKUP_WINDOW_WEEKS` |
+| Durée d'un emprunt | 14 jours | `library.borrowing_duration_days`, lue dans `BorrowingServiceImpl.createBorrowing` |
+| Fenêtre de retrait d'une réservation `active` | 7 jours | `library.pickup_window_days`, lue dans `HoldServiceImpl.promoteNextPendingHold` |
 | Durée de vie max d'une réservation `pending` | 5 semaines | **nulle part** — documentée, jamais implémentée |
+
+Les anciennes constantes `BORROWING_DURATION_WEEKS` (2 semaines) et
+`HOLD_PICKUP_WINDOW_WEEKS` (1 semaine) n'existent plus. La seconde se trouvait
+dans `HoldServiceImpl`, et non dans `BorrowingServiceImpl` comme cette page le
+disait.
 
 > La troisième valeur n'a **aucun effet** aujourd'hui : aucun scheduler ne fait
 > expirer les réservations. La rendre configurable sans la rendre effective
@@ -153,13 +154,14 @@ les trois durées.
 
 ## 5. Qui peut modifier quoi
 
-| Portée | `USER` | `LIBRARIAN` | `ADMIN` |
+| Action | `USER` | `LIBRARIAN` | `ADMIN` |
 |---|:--:|:--:|:--:|
-| Valeurs globales | ❌ | ❌ | ✅ |
-| Surcharges d'une bibliothèque | ❌ | ✅ ses bibliothèques | ✅ |
+| Lire les règles de prêt de toutes les bibliothèques | ❌ | ✅ | ✅ |
+| Modifier les règles de prêt d'une bibliothèque | ❌ | ❌ | ✅ |
 
-Un bibliothécaire peut donc adapter les règles de **sa** bibliothèque sans
-pouvoir déplacer le défaut de l'établissement.
+Un bibliothécaire voit les règles de **toutes** les bibliothèques en lecture
+seule, faute de `users.library_id` pour le restreindre à la sienne. Seul
+l'administrateur les modifie.
 
 ---
 

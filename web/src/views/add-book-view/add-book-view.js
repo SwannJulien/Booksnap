@@ -29,6 +29,7 @@ export class AddBookView extends LitElement {
     this.showBookForm = false;
     this.showNotFound = false;
     this._scannerLoaded = false;
+    this._resetOnModalClose = false;
   }
 
   firstUpdated() {
@@ -62,6 +63,7 @@ export class AddBookView extends LitElement {
       <div class="card">${this._renderTabContent()}</div>
       <create-book-bks
         @book-created=${this._handleBookCreated}
+        @modal-close=${this._handleModalClose}
       ></create-book-bks>
     `;
   }
@@ -264,8 +266,20 @@ export class AddBookView extends LitElement {
     }
   }
 
+  // The tab is not cleared until the confirmation modal is closed, so the
+  // librarian can still read the details behind it while printing the QR code.
   _handleBookCreated() {
-    // Reset form state after successful creation
+    this._resetOnModalClose = true;
+  }
+
+  // modal-close can reach the view twice (from modal-bks and from
+  // create-book-bks), so the flag also keeps the reset from running twice.
+  _handleModalClose() {
+    if (!this._resetOnModalClose) {
+      return;
+    }
+    this._resetOnModalClose = false;
+    this._switchTab(this.activeTab);
   }
 
   _handleCoverError(e) {

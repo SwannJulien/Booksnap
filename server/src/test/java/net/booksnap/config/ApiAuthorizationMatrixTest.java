@@ -59,7 +59,7 @@ class ApiAuthorizationMatrixTest {
     private MockMvc mockMvc;
 
     /**
-     * The 28 business endpoints of the project, in controller order. The count is part of
+     * The 37 business endpoints of the project, in controller order. The count is part of
      * the story: a missing line here is an endpoint nobody checked.
      */
     private static Stream<Arguments> permissionMatrix() {
@@ -70,6 +70,7 @@ class ApiAuthorizationMatrixTest {
                 Arguments.of(HttpMethod.GET, "/api/v1/books/" + ABSENT_ID + "/copies", EVERYONE),
                 Arguments.of(HttpMethod.GET, "/api/v1/books/" + ABSENT_ID, EVERYONE),
                 Arguments.of(HttpMethod.GET, "/api/v1/books", EVERYONE),
+                Arguments.of(HttpMethod.GET, "/api/v1/books/" + ABSENT_ID + "/history", STAFF),
                 Arguments.of(HttpMethod.POST, "/api/v1/books", STAFF),
                 Arguments.of(HttpMethod.PUT, "/api/v1/books/" + ABSENT_ID, STAFF),
                 Arguments.of(HttpMethod.DELETE, "/api/v1/books/" + ABSENT_ID, ADMIN_ONLY),
@@ -77,10 +78,11 @@ class ApiAuthorizationMatrixTest {
                 // CopyController
                 Arguments.of(HttpMethod.GET, "/api/v1/copies/statuses", EVERYONE),
                 Arguments.of(HttpMethod.GET, "/api/v1/copies/" + ABSENT_ID + "/qrcode", STAFF),
+                Arguments.of(HttpMethod.GET, "/api/v1/copies/" + ABSENT_ID + "/history", STAFF),
                 Arguments.of(HttpMethod.GET, "/api/v1/copies/" + ABSENT_ID, EVERYONE),
                 Arguments.of(HttpMethod.POST, "/api/v1/copies", STAFF),
                 Arguments.of(HttpMethod.PUT, "/api/v1/copies/" + ABSENT_ID, STAFF),
-                Arguments.of(HttpMethod.DELETE, "/api/v1/copies/" + ABSENT_ID, STAFF),
+                Arguments.of(HttpMethod.DELETE, "/api/v1/copies/" + ABSENT_ID, ADMIN_ONLY),
 
                 // BorrowingController
                 Arguments.of(HttpMethod.GET, "/api/v1/borrowings", STAFF),
@@ -105,8 +107,19 @@ class ApiAuthorizationMatrixTest {
                 // GenreController
                 Arguments.of(HttpMethod.GET, "/api/v1/genres/search", EVERYONE),
 
+                // ArchiveController
+                Arguments.of(HttpMethod.GET, "/api/v1/archive/books", STAFF),
+                Arguments.of(HttpMethod.GET, "/api/v1/archive/copies", STAFF),
+
                 // UserController — the reason this story exists (access rules §4.4)
-                Arguments.of(HttpMethod.GET, "/api/v1/users/search", STAFF));
+                Arguments.of(HttpMethod.GET, "/api/v1/users/search", STAFF),
+
+                // LibraryController
+                Arguments.of(HttpMethod.GET, "/api/v1/libraries", ADMIN_ONLY),
+                Arguments.of(HttpMethod.POST, "/api/v1/libraries", ADMIN_ONLY),
+                Arguments.of(HttpMethod.PUT, "/api/v1/libraries/" + ABSENT_ID, ADMIN_ONLY),
+                Arguments.of(HttpMethod.GET, "/api/v1/libraries/loan-rules", STAFF),
+                Arguments.of(HttpMethod.PUT, "/api/v1/libraries/" + ABSENT_ID + "/loan-rules", ADMIN_ONLY));
     }
 
     @ParameterizedTest(name = "{0} {1}")

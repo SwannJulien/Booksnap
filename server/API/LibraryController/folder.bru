@@ -1,0 +1,32 @@
+meta {
+  name: LibraryController
+  seq: 11
+}
+
+auth {
+  mode: inherit
+}
+
+docs {
+    GET  /libraries        admin
+    POST /libraries        admin
+    PUT  /libraries/{id}   admin
+    GET  /libraries/loan-rules          admin, librarian
+    PUT  /libraries/{id}/loan-rules     admin
+
+  The school's libraries, sorted by name ignoring case. A librarian or a student
+  gets 403.
+
+  POST takes { name }: surrounding spaces are removed, 255 characters at most (400
+  otherwise), and 409 if a library already bears that name, case aside.
+
+  PUT takes { name } with the same rules and the same 409 as POST. Changing only the
+  case of a library's own name is allowed. 404 if the id is unknown.
+
+  GET /libraries/loan-rules lists every library, sorted by name like GET /libraries,
+  with { id, name, borrowingDurationDays, pickupWindowDays }. A student gets 403.
+
+  PUT /libraries/{id}/loan-rules takes { borrowingDurationDays, pickupWindowDays }:
+  whole numbers of days from 1 to 365, both required, otherwise 400 and nothing is
+  saved. 404 if the id is unknown. Existing borrowings and holds keep their dates.
+}

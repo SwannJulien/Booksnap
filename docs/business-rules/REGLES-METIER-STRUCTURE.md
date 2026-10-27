@@ -26,6 +26,7 @@ Documents liés :
 - [7. Dérive du schéma réel](#7-dérive-du-schéma-réel)
 - [8. Les colonnes d'audit ne sont pas des clés étrangères](#8-les-colonnes-daudit-ne-sont-pas-des-clés-étrangères)
 - [9. Récapitulatif des cascades](#9-récapitulatif-des-cascades)
+- [10. Le journal de cycle de vie](#10-le-journal-de-cycle-de-vie)
 
 ---
 
@@ -53,36 +54,57 @@ hold.copy_id       → copy(id)     (aucune action → NO ACTION)
 
 ### Ce que cela implique
 
-**Une copie qui a déjà été empruntée ne peut pas être supprimée.** `NO ACTION`
-bloque la suppression tant qu'une ligne `borrowing` ou `hold` la référence — y
-compris un emprunt `returned` vieux de trois ans. C'est une protection de
-l'historique, et elle est souhaitable.
+**La suppression est logique, et ces clés étrangères ne gênent plus personne.**
+Depuis `V9` (US-01), `book` et `copy` portent une colonne `deleted_at`. Supprimer
+une copie ou un livre, c'est horodater cette colonne : plus aucun `deleteById`
+n'est appelé sur ces deux tables, donc plus aucune ligne n'est détruite, donc les
+`NO ACTION` ne s'opposent à rien et la `CASCADE` de `copy.book_id` ne se déclenche
+jamais. L'historique de prêt des élèves est conservé intégralement.
 
-**Mais elle n'est pas gérée par le code.** `CopyServiceImpl.deleteCopyById:113`
-appelle `deleteById` sans aucune vérification :
+**`NULL` veut dire vivant.** Toute lecture exposée par l'API filtre
+explicitement `deleted_at IS NULL` — liste et recherche de livres, lectures
+unitaires, comptes de copies, contrôles d'unicité. Le filtrage est écrit requête
+par requête et non déclaré une fois pour toutes sur les entités
+(`@SQLRestriction`), parce que les écrans d'archive doivent lire exactement les
+lignes que ce filtre exclut. **Conséquence : une requête qui oublie le filtre
+n'échoue nulle part, elle fait simplement réapparaître un livre supprimé.**
 
-```java
-public void deleteCopyById(Long copyId) {
-    if (copyRepository.existsById(copyId)){
-        copyRepository.deleteById(copyId);   // ← violation de FK si la copie a un historique
-    } else {
-        throw new CopyNotFoundException(copyId);
-    }
-}
-```
+**Règle : un emprunt ou une réservation *en cours* bloque la suppression ; son
+historique ne la bloque pas.** « En cours » vaut quatre statuts et seulement
+quatre — `borrowing` en `borrowed` ou `overdue`, `hold` en `pending` ou `active`
+(les constantes `Status.ACTIVE` des deux énumérations). Un emprunt `returned`
+vieux de trois ans, une réservation `expired` ou `fulfilled` ne s'opposent plus à
+rien. Le refus est un **409** explicite, porté par
+`CopyHasActiveLoanOrHoldException` et `BookHasActiveLoanOrHoldException`.
 
-L'appelant reçoit une `DataIntegrityViolationException` brute, pas un **409**
-explicite. **Règle : la suppression d'une copie doit d'abord vérifier
-l'existence d'un `borrowing` ou d'un `hold` et renvoyer un 409 explicite.**
+Une réservation `pending` n'a pas de copie attachée : elle bloque le **livre** et
+aucune copie en particulier.
 
-**`DELETE /books/{id}` hérite du même mur.** Supprimer une notice tente de
-supprimer ses copies en cascade ; si l'une d'elles a un historique, la cascade
-échoue et **toute la suppression échoue**. L'endpoint est donc déjà inopérant
-pour tout livre ayant été emprunté au moins une fois.
+**Supprimer un livre supprime logiquement toutes ses copies**, dans la même
+transaction. Laisser des copies vivantes sous un livre supprimé donnerait des
+copies inatteignables par le catalogue mais toujours empruntables.
 
-**Conséquence d'autorisation :** parce que la cascade traverse toutes les
-bibliothèques, `DELETE /books/{id}` est réservé à l'`ADMIN`
-([règles accès §4.1](REGLES-METIER-ACCES.md)).
+**Le contrôle et l'écriture partagent une transaction**, et ce n'est pas
+décoratif : horodater `deleted_at` ne viole aucune clé étrangère, donc un emprunt
+créé entre les deux donnerait une copie supprimée **et** empruntée sans la moindre
+erreur. L'autre moitié de cette fenêtre est la lecture filtrée de la création
+d'emprunt, qui refuse une copie supprimée.
+
+**`deleted_at` et `copy.status` sont deux axes indépendants.** Une copie supprimée
+reste `available` et `Status.isBorrowable()` répond toujours `true` : `status`
+appartient aux triggers ([§5](#5-copystatus-appartient-aux-triggers)),
+et un retour d'emprunt écraserait toute valeur écrite ici. Ce qui refuse l'emprunt
+d'une copie supprimée est la lecture filtrée, jamais le statut.
+
+**La couverture n'est pas supprimée.** La notice n'étant pas détruite, elle reste
+consultable depuis l'archive ; une image orpheline coûte moins qu'une vignette
+manquante.
+
+**Conséquence d'autorisation :** `DELETE /books/{id}` **et** `DELETE /copies/{id}`
+sont réservés à l'`ADMIN` ([règles accès §4.1](REGLES-METIER-ACCES.md)). La raison
+n'est plus la cascade : c'est que plus rien ne protège par accident un emprunt
+ancien, donc retirer une notice ou une copie du fonds devient une décision sur
+l'archive.
 
 ---
 
@@ -147,10 +169,11 @@ L'archivage est l'opération du quotidien ; la suppression ne sert qu'au cas
 
 ## 5. `copy.status` appartient aux triggers
 
-`copy.status` n'est **jamais** écrit par le code applicatif, hors action manuelle
-« Update status ». Quatre triggers le synchronisent depuis `borrowing` et
-`hold`. Le détail des règles est dans
-[règles emprunts §5](REGLES-METIER-EMPRUNTS-RESERVATIONS.md).
+Hors création d'une copie, le code applicatif n'écrit `copy.status` que pour la
+déclarer `lost` (depuis `available`) ou retrouvée (`lost` vers `available`) ; tout
+le reste appartient aux triggers, et `damaged` ne s'écrit qu'en psql. Quatre
+triggers synchronisent le statut depuis `borrowing` et `hold`. Le détail des
+règles est dans [règles emprunts §5](REGLES-METIER-EMPRUNTS-RESERVATIONS.md).
 
 Deux conséquences pour toute nouvelle fonctionnalité qui touche aux prêts :
 
@@ -162,6 +185,10 @@ Deux conséquences pour toute nouvelle fonctionnalité qui touche aux prêts :
    **avant** celle de la réservation.
 
 Ces règles s'appliqueront telles quelles au renouvellement et à la suspension.
+
+Toute écriture de `copy.status` est journalisée par un trigger
+([§10](#10-le-journal-de-cycle-de-vie)) : celles des triggers ci-dessus comme un
+`UPDATE` lancé à la main en psql.
 
 ---
 
@@ -397,3 +424,57 @@ masse ajoutée plus tard sur une table auditée.
 | `notification.borrowing_id → borrowing` | `NO ACTION` | 🛡️ Bloque |
 
 🛡️ protège l'historique · ⚠️ détruit sans avertissement
+
+> Ce tableau décrit ce que feraient ces clés **si** le parent était physiquement
+> supprimé. Pour `book` et `copy`, ce cas ne se produit plus : la suppression y est
+> logique depuis `V9` ([§2](#2-supprimer-un-livre-ou-une-copie)), aucun `DELETE` SQL
+> n'est émis, donc ni la `CASCADE` de `copy.book_id` ni les `NO ACTION` qui pointent
+> vers `copy` n'entrent en jeu. Les autres lignes restent d'actualité.
+
+---
+
+## 10. Le journal de cycle de vie
+
+`lifecycle_event` (depuis `V10`) consigne ce qui arrive à un livre et à une copie :
+création, modification, changement de statut, suppression, emprunt, retard,
+retour et les quatre temps d'une réservation. Les colonnes d'audit disent **qui en
+dernier** ; le journal dit **ce qui s'est passé**.
+
+**Il est en ajout seul.** Un trigger refuse tout `UPDATE` et tout `DELETE` sur la
+table. Rien dans l'application ne les émet, et il n'y a pas de purge.
+`TRUNCATE` n'est pas bloqué : seul `reset.sql` le lance, pour une base de
+développement.
+
+**Il n'a aucune clé étrangère, délibérément** — ni vers `book`, `copy`, `library`,
+`borrowing`, `hold`, ni vers `users` (`student_id` compris). Une clé vers `book`
+détruirait le journal à la première suppression physique (`CASCADE`) ou la
+rendrait impossible (`NO ACTION`). Les identifiants y sont des références mortes,
+assumées comme telles. Ne jamais en ajouter « pour l'intégrité ».
+
+**Il est la source unique de l'historique et de la future vue d'analyse.** Un
+graphique est une requête d'agrégation sur cette table, sans stockage à part. Les
+axes de regroupement (livre, copie, bibliothèque, élève, type, date) sont des
+colonnes indexées ; les libellés d'époque (titre, code d'identification, section,
+anciennes et nouvelles valeurs) sont dans `detail`. Le niveau et la maison de
+l'élève sont ceux **du moment** : ils changent chaque année.
+
+**Les événements métier se comptent, les changements de statut non.** Un emprunt
+produit deux lignes : `copy_status_changed` (`available → borrowed`) et `borrowed`.
+Les emprunts se comptent sur `type = 'borrowed'` et sur lui seul ; un
+`count(*) WHERE book_id = …` mêle emprunts, retours, retards et changements de
+statut, et rend un chiffre plausible et faux. `copy_status_changed` sert la
+chronologie d'une copie.
+
+**Qui écrit quoi.** Tout est écrit par des triggers `AFTER` sur `book`, `copy`,
+`borrowing` et `hold`, dans la transaction de l'opération : une opération annulée
+ne laisse rien. L'acteur est l'adresse e-mail de la personne connectée, transmise
+à la base par le paramètre `booksnap.actor` que `ActorAwareJpaTransactionManager`
+pose à chaque transaction en écriture ; sans lui (psql, script, ordonnanceur),
+c'est `system`.
+
+**Les lignes reprises.** `V10` a repris l'existant — créations, emprunts, retours,
+réservations, suppressions — avec `backfilled = true`. Les retours et les
+transitions de réservation sont datés par `last_modified_date`, écrasée par toute
+écriture ultérieure : leur `approximate_date` vaut `true`. L'analyse décide si elle
+les exclut. Les changements de statut, les modifications et les retards antérieurs
+à `V10` ne sont pas repris : aucune date ne les conserve.

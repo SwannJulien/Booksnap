@@ -108,6 +108,12 @@ export const copyTableBksStyles = css`
     background-color: var(--clr-warning-badge);
   }
 
+  .status-lost {
+    color: var(--clr-text-muted);
+    border: 1px solid var(--clr-text-muted);
+    background-color: transparent;
+  }
+
   .status-due-date {
     font-size: var(--step--2);
     color: var(--clr-text-muted);

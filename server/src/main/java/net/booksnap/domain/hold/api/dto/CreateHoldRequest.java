@@ -6,6 +6,6 @@ public record CreateHoldRequest(
         @NotNull(message = "User ID is required")
         Long userId,
 
-        @NotNull(message = "Book ID is required")
-        Long bookId
+        @NotNull(message = "Copy ID is required")
+        Long copyId
 ) {}
