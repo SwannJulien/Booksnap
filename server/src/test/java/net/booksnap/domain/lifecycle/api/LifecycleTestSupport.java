@@ -106,11 +106,11 @@ final class LifecycleTestSupport {
                 .andExpect(status().is2xxSuccessful());
     }
 
-    void placeHold(long userId, long bookId) throws Exception {
+    void placeHold(long userId, long copyId) throws Exception {
         mockMvc.perform(admin(post("/api/v1/holds"))
                         .content("""
-                                {"userId": %d, "bookId": %d}
-                                """.formatted(userId, bookId)))
+                                {"userId": %d, "copyId": %d}
+                                """.formatted(userId, copyId)))
                 .andExpect(status().is2xxSuccessful());
     }
 

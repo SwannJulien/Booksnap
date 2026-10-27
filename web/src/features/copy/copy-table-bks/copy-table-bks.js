@@ -201,8 +201,10 @@ export class CopyTableBks extends LitElement {
   _getDropdownOptions(copy) {
     const data = { ...copy, bookId: this.bookId, bookTitle: this.bookTitle };
     
-    const bookHasAvailableCopy = this.copies?.some(
-      c => c.status?.toLowerCase() === 'available',
+    const libraryHasAvailableCopy = this.copies?.some(
+      c =>
+        c.library?.id === copy.library?.id &&
+        c.status?.toLowerCase() === 'available',
     );
     return [
       // Only an available copy can be lent, so the entry is hidden otherwise
@@ -239,7 +241,7 @@ export class CopyTableBks extends LitElement {
             },
           ]
         : []),
-      ...(!bookHasAvailableCopy
+      ...(!libraryHasAvailableCopy
         ? [
             {
               action: 'hold-book',

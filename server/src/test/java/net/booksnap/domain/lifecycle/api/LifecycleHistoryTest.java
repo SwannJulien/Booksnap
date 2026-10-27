@@ -129,7 +129,7 @@ class LifecycleHistoryTest {
         BookFixture book = scenario.createBook("US05 found under hold");
         scenario.setCopyStatus(book.copyId(), "lost");
         long studentId = scenario.createStudent("Clara", "Dupont");
-        scenario.placeHold(studentId, book.bookId());
+        scenario.placeHold(studentId, book.copyId());
         scenario.setCopyStatus(book.copyId(), "available");
         entityManager.flush();
 

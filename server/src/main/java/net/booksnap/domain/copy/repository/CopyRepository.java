@@ -43,7 +43,7 @@ public interface CopyRepository extends JpaRepository<Copy, Long> {
 
     boolean existsByBookIdAndDeletedAtIsNullAndStatusNot(Long bookId, Status status);
 
-    long countByBookIdAndStatusAndDeletedAtIsNull(Long bookId, Status status);
+    long countByBookIdAndLibraryIdAndStatusAndDeletedAtIsNull(Long bookId, Long libraryId, Status status);
 
     @Query("SELECT c.book.id, COUNT(c), SUM(CASE WHEN c.status = :availableStatus THEN 1 ELSE 0 END) " +
            "FROM Copy c WHERE c.book.id IN :bookIds AND c.deletedAt IS NULL " +

@@ -125,40 +125,49 @@ Le retour déclenche, **dans la même transaction** :
 
 | Statut | Copie rattachée | Signification |
 |---|---|---|
-| `pending` | aucune | En file d'attente : toutes les copies sont sorties, aucune copie assignée. |
-| `active` | assignée | Une copie a été mise de côté ; 1 semaine pour venir la retirer (`start_date`/`end_date`). |
+| `pending` | aucune | En file d'attente : toutes les copies du livre sont sorties dans la bibliothèque de la réservation, aucune copie assignée. |
+| `active` | assignée | Une copie a été mise de côté ; la fenêtre de retrait de la bibliothèque de la copie pour venir la retirer (`start_date`/`end_date`). |
 | `expired` | assignée / aucune | Fenêtre de retrait dépassée, **ou** `pending` depuis trop longtemps sans copie. |
 | `fulfilled` | assignée | Retirée : la réservation est devenue un emprunt. État terminal. |
 
 ### Règles de création d'une réservation
 
-Créée via `POST /api/v1/holds` avec `{ bookId, userId }` :
+Créée via `POST /api/v1/holds` avec `{ copyId, userId }` — la réservation est
+posée **depuis une copie** :
 
-- Le livre et l'utilisateur doivent exister (sinon **404**).
-- **Règle centrale : on ne peut réserver un livre que s'il est entièrement
-  sorti.** Si **au moins une copie du livre est `available`**, la réservation est
-  refusée → **409** (`BookHasAvailableCopyException`) : une copie disponible doit
-  être **empruntée**, pas réservée (un hold `pending` ne serait jamais promu tant
-  qu'une copie reste libre).
-- **Un seul hold `pending` ou `active` par (utilisateur, livre)** — garanti par
-  l'index unique `uq_hold_one_active_per_user_book`. Doublon → refus **409**
-  (`HoldAlreadyExistsException`).
-- La `library` de la réservation est dérivée d'une copie existante du livre.
+- La copie (non supprimée) et l'utilisateur doivent exister (sinon **404**). Le
+  livre de la réservation est celui de la copie.
+- **Règle centrale : on ne peut réserver un livre que s'il est entièrement sorti
+  dans la bibliothèque de la copie.** Si **au moins une copie du livre est
+  `available` dans cette bibliothèque**, la réservation est refusée → **409**
+  (`BookHasAvailableCopyException`, `reason: "copy_available"`) : une copie
+  disponible doit être **empruntée**, pas réservée (un hold `pending` ne serait
+  jamais promu tant qu'une copie reste libre). Une copie disponible dans une
+  **autre** bibliothèque n'y fait pas obstacle.
+- **Un seul hold `pending` ou `active` par (utilisateur, livre), pour toute
+  l'école** — garanti par l'index unique `uq_hold_one_active_per_user_book`.
+  Doublon → refus **409** (`HoldAlreadyExistsException`,
+  `reason: "duplicate_hold"`).
+- La `library` de la réservation est la bibliothèque de la copie depuis laquelle
+  elle est posée.
 - La réservation est créée en **`pending`, sans copie attachée**. Elle attend son
   tour dans la file jusqu'à ce qu'une copie soit rendue.
 
 > **Côté UI** : l'entrée « Hold a book » du menu d'actions d'une copie n'apparaît
-> **que si aucune copie du livre n'est `available`**. Sur un livre disponible, le
-> bouton est masqué (et le back refuserait de toute façon).
+> **que si aucune copie de la bibliothèque de la ligne n'est `available`**. Sinon
+> le bouton est masqué (et le back refuserait de toute façon).
 
 ### File d'attente et promotion
 
 - **Ordre de la file** : `created_date` croissant — la réservation `pending` la
-  plus ancienne pour un livre est servie en premier.
+  plus ancienne pour un livre **dans la bibliothèque de la copie rendue** est
+  servie en premier. La file est par livre **et par bibliothèque** ; si elle est
+  vide, la copie reste `available`.
 - **Promotion `pending → active`** : déclenchée par le **retour** d'un emprunt
   (couche service, `promoteNextPendingHold`). La copie rendue est assignée à la
   tête de file : `status = active`, `start_date = aujourd'hui`,
-  `end_date = aujourd'hui + 1 semaine`. La copie passe alors `on_hold`.
+  `end_date = aujourd'hui + la fenêtre de retrait de la bibliothèque de la copie`.
+  La copie passe alors `on_hold`.
   - Ne se produit **que** si la copie est revenue `available` (une copie
     `damaged` reste `damaged` et n'est pas assignée).
 - **Honorée `active → fulfilled`** : quand l'étudiant concerné emprunte enfin sa
@@ -254,13 +263,16 @@ stateDiagram-v2
 
 ### C. Tenter de réserver un livre qui a une copie disponible
 
-1. Le livre a une copie `available`. L'entrée « Hold a book » n'est **pas
-   affichée** dans le menu.
-2. Si la requête est tout de même envoyée (autre client, appel direct) → le back
-   refuse avec **409** (`BookHasAvailableCopyException`) : il faut **emprunter**
-   la copie disponible, pas la réserver.
-3. Une fois toutes les copies sorties, la réservation devient possible ; elle est
-   créée `pending` puis promue au retour d'une copie.
+1. Le livre a une copie `available` dans la bibliothèque de la ligne. L'entrée
+   « Hold a book » n'est **pas affichée** dans le menu de cette ligne.
+2. Si la requête est tout de même envoyée (autre client, appel direct, copie
+   devenue disponible entre-temps) → le back refuse avec **409**
+   (`BookHasAvailableCopyException`, `reason: "copy_available"`) : il faut
+   **emprunter** la copie disponible, pas la réserver.
+3. Une copie disponible dans une **autre** bibliothèque ne gêne pas : la
+   réservation est possible depuis une copie de la bibliothèque où tout est sorti.
+4. Une fois toutes les copies de la bibliothèque sorties, la réservation est
+   créée `pending` puis promue au retour d'une copie de cette bibliothèque.
 
 ---
 

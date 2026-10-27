@@ -678,6 +678,8 @@ export class CatalogView extends LitElement {
         ?open=${!!this.bookToHold}
         .bookId=${this.bookToHold?.bookId}
         .bookTitle=${this.bookToHold?.bookTitle}
+        .copyId=${this.bookToHold?.copyId}
+        .libraryName=${this.bookToHold?.libraryName}
         @modal-close=${this._handleHoldModalClose}
       ></hold-modal-bks>
     `;
@@ -687,6 +689,8 @@ export class CatalogView extends LitElement {
     this.bookToHold = {
       bookId: copy.bookId,
       bookTitle: copy.bookTitle,
+      copyId: copy.id,
+      libraryName: copy.library?.name,
     };
   }
 

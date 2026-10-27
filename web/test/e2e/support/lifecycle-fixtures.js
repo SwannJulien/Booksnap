@@ -51,10 +51,15 @@ export async function createBook(page, titlePrefix) {
   };
 }
 
-export async function addCopy(page, bookId, sectionName = 'Mystery') {
+export async function addCopy(
+  page,
+  bookId,
+  sectionName = 'Mystery',
+  libraryId = 1,
+) {
   const created = await send(page, 'POST', '/api/v1/copies', {
     bookId,
-    libraryId: 1,
+    libraryId,
     sectionName,
     status: 'available',
   });
@@ -92,9 +97,13 @@ export async function borrow(page, copyId) {
   });
 }
 
+export async function giveBack(page, borrowingId) {
+  await send(page, 'POST', `/api/v1/borrowings/${borrowingId}/return`);
+}
+
 export async function borrowAndReturn(page, copyId) {
   const borrowing = await borrow(page, copyId);
-  await send(page, 'POST', `/api/v1/borrowings/${borrowing.id}/return`);
+  await giveBack(page, borrowing.id);
 }
 
 export async function createDeletedBook(page, titlePrefix) {

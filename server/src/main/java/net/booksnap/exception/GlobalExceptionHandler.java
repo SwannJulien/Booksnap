@@ -19,6 +19,7 @@ import net.booksnap.exception.cover.CoverNotFoundException;
 import net.booksnap.exception.dewey.DeweyCodeNotFoundException;
 import net.booksnap.exception.dewey.FictionBookHasDeweyCodeException;
 import net.booksnap.exception.hold.BookHasAvailableCopyException;
+import net.booksnap.exception.hold.HoldRefusalReason;
 import net.booksnap.exception.hold.HoldAlreadyExistsException;
 import net.booksnap.exception.library.LibraryNameTakenException;
 import net.booksnap.exception.library.LibraryNotFoundException;
@@ -266,23 +267,25 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HoldAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleHoldAlreadyExists(HoldAlreadyExistsException ex, HttpServletRequest request) {
-        ApiError error = new ApiError(
+    public ResponseEntity<HoldRefusedError> handleHoldAlreadyExists(HoldAlreadyExistsException ex, HttpServletRequest request) {
+        HoldRefusedError error = new HoldRefusedError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
-                request.getRequestURI()
+                request.getRequestURI(),
+                HoldRefusalReason.duplicate_hold
         );
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(BookHasAvailableCopyException.class)
-    public ResponseEntity<ApiError> handleBookHasAvailableCopy(BookHasAvailableCopyException ex, HttpServletRequest request) {
-        ApiError error = new ApiError(
+    public ResponseEntity<HoldRefusedError> handleBookHasAvailableCopy(BookHasAvailableCopyException ex, HttpServletRequest request) {
+        HoldRefusedError error = new HoldRefusedError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
-                request.getRequestURI()
+                request.getRequestURI(),
+                HoldRefusalReason.copy_available
         );
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
