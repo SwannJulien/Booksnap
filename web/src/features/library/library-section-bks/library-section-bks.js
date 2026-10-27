@@ -42,6 +42,7 @@ export class LibrarySectionBks extends LitElement {
     return html`
       <section aria-labelledby="libraries-title">
         <h2 id="libraries-title">Libraries</h2>
+        <p class="subtitle">Add the school's libraries and rename them.</p>
         ${this.librariesTask.render({
           pending: () => html`<spinner-bks></spinner-bks>`,
           complete: libraries =>
@@ -62,8 +63,10 @@ export class LibrarySectionBks extends LitElement {
     return library.id === this._renamingId
       ? this._renderRenameForm(library)
       : html`<li>
-          ${library.name}
+          <span class="library-name">${library.name}</span>
           <button-bks
+            icon="edit"
+            icon-only
             label="Rename"
             @click=${() => this._openRename(library)}
           ></button-bks>
@@ -85,9 +88,15 @@ export class LibrarySectionBks extends LitElement {
         <button-bks
           type="submit"
           label="Save"
+          compact
           ?disabled=${this._renaming}
         ></button-bks>
-        <button-bks label="Cancel" @click=${this._closeRename}></button-bks>
+        <button-bks
+          label="Cancel"
+          compact
+          variant="secondary"
+          @click=${this._closeRename}
+        ></button-bks>
         ${this._renameError
           ? html`<p role="alert">${this._renameError}</p>`
           : nothing}
@@ -110,9 +119,15 @@ export class LibrarySectionBks extends LitElement {
         <button-bks
           type="submit"
           label="Create"
+          compact
           ?disabled=${this._submitting}
         ></button-bks>
-        <button-bks label="Cancel" @click=${this._closeForm}></button-bks>
+        <button-bks
+          label="Cancel"
+          compact
+          variant="secondary"
+          @click=${this._closeForm}
+        ></button-bks>
         ${this._error ? html`<p role="alert">${this._error}</p>` : nothing}
       </form>
     `;

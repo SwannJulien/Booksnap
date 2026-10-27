@@ -12,7 +12,7 @@ async function openSettingsAs(page, account) {
 
 async function expectNoLibrariesSection(page) {
   await expect(
-    page.getByRole('heading', { name: 'Settings View' }),
+    page.getByRole('heading', { level: 1, name: 'Settings', exact: true }),
   ).toBeVisible();
   await expect(librariesSection(page)).toHaveCount(0);
 }

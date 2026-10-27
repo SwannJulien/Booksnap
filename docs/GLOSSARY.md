@@ -29,3 +29,12 @@ The two lists of what has been deleted: deleted books, and copies deleted on
 their own (not carried away by the deletion of their book).
 _Avoid_: trash, recycle bin
 _In code_: `archive`
+
+### Settings
+
+**Settings section**:
+A titled block of the Settings page that groups what one kind of thing can be
+configured (today only _Libraries_, shown to administrators). It has a heading
+and, right under it, a one-line subtitle saying what can be configured there.
+_Avoid_: sub-menu, tab, panel
+_In code_: `<section>` rendered by the settings view (`library-section-bks` for _Libraries_)

@@ -10,7 +10,7 @@ export class SettingsView extends LitElement {
 
   render() {
     return html`
-      <h1>Settings View</h1>
+      <h1>Settings</h1>
       ${isAdmin() ? html`<library-section-bks></library-section-bks>` : nothing}
     `;
   }

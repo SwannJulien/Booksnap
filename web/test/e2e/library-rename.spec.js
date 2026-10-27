@@ -12,7 +12,7 @@ const newNameField = scope =>
 const restingRow = (page, name) =>
   librariesSection(page)
     .getByRole('listitem')
-    .filter({ hasText: new RegExp(`^\\s*${name}\\s+Rename\\s*$`) });
+    .filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) });
 
 const editingRow = page =>
   librariesSection(page)

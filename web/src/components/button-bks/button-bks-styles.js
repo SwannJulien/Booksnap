@@ -32,6 +32,32 @@ export const buttonBksStyles = [
       color: #fff;
     }
 
+    :host([compact]) {
+      margin-top: 0;
+    }
+
+    :host([compact]) button {
+      min-width: 0;
+      padding: 0.5em 1em;
+    }
+
+    :host([icon-only]) {
+      margin-top: 0;
+    }
+
+    :host([icon-only]) button {
+      display: flex;
+      min-width: 0;
+      padding: 0.4rem;
+      background-color: transparent;
+      color: var(--clr-text-light);
+    }
+
+    :host([icon-only]) button:hover:not(:disabled) {
+      background-color: var(--clr-card-gray);
+      filter: none;
+    }
+
     button:hover:not(:disabled) {
       filter: brightness(1.1);
     }
