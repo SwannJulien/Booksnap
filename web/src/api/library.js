@@ -53,3 +53,43 @@ export async function renameLibrary(id, name) {
 
   return response.json();
 }
+
+export async function getLoanRules() {
+  const response = await apiFetch(
+    `${API_BASE_URL}${API_ROUTES.LIBRARIES}/loan-rules`,
+  );
+
+  if (!response.ok) {
+    const error = new Error(`Failed to fetch loan rules: ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+export async function updateLoanRules(
+  id,
+  borrowingDurationDays,
+  pickupWindowDays,
+) {
+  const response = await apiFetch(
+    `${API_BASE_URL}${API_ROUTES.LIBRARIES}/${id}/loan-rules`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ borrowingDurationDays, pickupWindowDays }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to save loan rules: ${response.status}`,
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}

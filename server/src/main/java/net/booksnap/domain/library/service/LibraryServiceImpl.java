@@ -1,8 +1,11 @@
 package net.booksnap.domain.library.service;
 
+import jakarta.persistence.EntityManager;
 import net.booksnap.domain.library.Library;
 import net.booksnap.domain.library.api.dto.LibraryNameRequest;
 import net.booksnap.domain.library.api.dto.LibraryResponse;
+import net.booksnap.domain.library.api.dto.LoanRulesRequest;
+import net.booksnap.domain.library.api.dto.LoanRulesResponse;
 import net.booksnap.domain.library.repository.LibraryRepository;
 import net.booksnap.exception.library.LibraryNameTakenException;
 import net.booksnap.exception.library.LibraryNotFoundException;
@@ -18,9 +21,11 @@ import java.util.List;
 public class LibraryServiceImpl implements LibraryService {
 
     private final LibraryRepository libraryRepository;
+    private final EntityManager entityManager;
 
-    public LibraryServiceImpl(LibraryRepository libraryRepository) {
+    public LibraryServiceImpl(LibraryRepository libraryRepository, EntityManager entityManager) {
         this.libraryRepository = libraryRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -39,7 +44,10 @@ public class LibraryServiceImpl implements LibraryService {
 
         Library library = new Library();
         library.setName(request.name());
-        return saveCatchingNameTaken(library);
+        LibraryResponse created = saveCatchingNameTaken(library);
+        // The loan rules are column defaults the INSERT does not carry; without this the entity holds nulls.
+        entityManager.refresh(library);
+        return created;
     }
 
     @Override
@@ -53,6 +61,22 @@ public class LibraryServiceImpl implements LibraryService {
         // After the duplicate check: a dirty entity is flushed before the query runs, outside the try below.
         library.setName(request.name());
         return saveCatchingNameTaken(library);
+    }
+
+    @Override
+    public List<LoanRulesResponse> findAllLoanRules() {
+        return libraryRepository.findAllOrderByNameIgnoreCase().stream()
+                .map(LoanRulesResponse::of)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public LoanRulesResponse updateLoanRules(Long id, LoanRulesRequest request) {
+        Library library = libraryRepository.findById(id).orElseThrow(() -> new LibraryNotFoundException(id));
+        library.setBorrowingDurationDays(request.borrowingDays());
+        library.setPickupWindowDays(request.pickupDays());
+        return LoanRulesResponse.of(libraryRepository.saveAndFlush(library));
     }
 
     private LibraryResponse saveCatchingNameTaken(Library library) {

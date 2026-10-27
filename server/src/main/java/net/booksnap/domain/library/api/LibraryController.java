@@ -3,6 +3,8 @@ package net.booksnap.domain.library.api;
 import jakarta.validation.Valid;
 import net.booksnap.domain.library.api.dto.LibraryNameRequest;
 import net.booksnap.domain.library.api.dto.LibraryResponse;
+import net.booksnap.domain.library.api.dto.LoanRulesRequest;
+import net.booksnap.domain.library.api.dto.LoanRulesResponse;
 import net.booksnap.domain.library.service.LibraryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -42,5 +44,15 @@ public class LibraryController {
     @PutMapping("/{id}")
     public LibraryResponse renameLibrary(@PathVariable Long id, @RequestBody @Valid LibraryNameRequest request) {
         return libraryService.rename(id, request);
+    }
+
+    @GetMapping("/loan-rules")
+    public List<LoanRulesResponse> getLoanRules() {
+        return libraryService.findAllLoanRules();
+    }
+
+    @PutMapping("/{id}/loan-rules")
+    public LoanRulesResponse updateLoanRules(@PathVariable Long id, @RequestBody @Valid LoanRulesRequest request) {
+        return libraryService.updateLoanRules(id, request);
     }
 }

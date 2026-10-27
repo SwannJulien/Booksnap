@@ -207,6 +207,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/libraries").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.POST, "/api/v1/libraries").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.PUT, "/api/v1/libraries/*").hasRole(ADMIN)
+                // Read-only Settings section for librarians, while the library list stays admin-only.
+                .requestMatchers(HttpMethod.GET, "/api/v1/libraries/loan-rules").hasAnyRole(LIBRARIAN, ADMIN)
+                .requestMatchers(HttpMethod.PUT, "/api/v1/libraries/*/loan-rules").hasRole(ADMIN)
 
                 // --- Everything else -----------------------------------------------------
                 // Actuator beyond the health probe is operational data, not the school's.

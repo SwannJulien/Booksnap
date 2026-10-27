@@ -37,8 +37,6 @@ import java.util.stream.Collectors;
 @Service
 public class BorrowingServiceImpl implements BorrowingService {
 
-    private static final int BORROWING_DURATION_WEEKS = 2;
-
     private final BorrowingRepository borrowingRepository;
     private final CopyRepository copyRepository;
     private final UserRepository userRepository;
@@ -85,7 +83,7 @@ public class BorrowingServiceImpl implements BorrowingService {
         borrowing.setUser(user);
         borrowing.setStatus(Status.borrowed);
         borrowing.setStartDate(startDate);
-        borrowing.setEndDate(startDate.plusWeeks(BORROWING_DURATION_WEEKS));
+        borrowing.setEndDate(startDate.plusDays(copy.getLibrary().getBorrowingDurationDays()));
 
         Borrowing savedBorrowing = borrowingRepository.save(borrowing);
 

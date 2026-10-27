@@ -133,6 +133,12 @@ export class LibrarySectionBks extends LitElement {
     `;
   }
 
+  _announceChange() {
+    this.dispatchEvent(
+      new CustomEvent('libraries-changed', { bubbles: true, composed: true }),
+    );
+  }
+
   _openForm() {
     this._adding = true;
   }
@@ -166,6 +172,7 @@ export class LibrarySectionBks extends LitElement {
       await renameLibrary(library.id, name);
       this._closeRename();
       this.librariesTask.run();
+      this._announceChange();
     } catch (error) {
       this._renameError = error.message;
     } finally {
@@ -186,6 +193,7 @@ export class LibrarySectionBks extends LitElement {
       await createLibrary(name);
       this._closeForm();
       this.librariesTask.run();
+      this._announceChange();
     } catch (error) {
       this._error = error.message;
     } finally {

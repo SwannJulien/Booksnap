@@ -15,6 +15,43 @@ there. Created by an administrator only.
 _Avoid_: site, branch, school
 _In code_: `library`
 
+**Copy**:
+One physical exemplar of a book. Every copy belongs to exactly one library; a
+book itself belongs to none.
+_Avoid_: item, exemplar, "the library's book" (when one copy is meant)
+_In code_: `copy`
+
+### Lending
+
+**Loan**:
+One copy lent to one student, from the day it is lent to the day it is
+returned. Its due date is fixed when it is created.
+_Avoid_: checkout, emprunt (in English text)
+_In code_: `borrowing`
+
+**Hold**:
+A student's place in the queue for a book at one library — the library of the
+copy it was placed from. It is served by whichever copy of that book in that
+library comes back first.
+_Avoid_: reservation, booking
+_In code_: `hold`
+
+**Borrowing duration**:
+The number of days a library lends a copy for; it sets a loan's due date.
+_Avoid_: loan period, lending time
+_In code_: `borrowing duration` (formerly the constant `BORROWING_DURATION_WEEKS`)
+
+**Pickup window**:
+The number of days a copy set aside for a hold is kept for its student before
+the hold expires.
+_Avoid_: collection window, hold duration
+_In code_: `pickup window` (formerly the constant `HOLD_PICKUP_WINDOW_WEEKS`)
+
+**Loan rules**:
+A library's borrowing duration and pickup window, taken together. Each library
+has its own; there is no school-wide value.
+_Avoid_: lending policy, parameters, global settings
+
 ### Lifecycle journal
 
 **History**:

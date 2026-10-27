@@ -59,7 +59,7 @@ class ApiAuthorizationMatrixTest {
     private MockMvc mockMvc;
 
     /**
-     * The 35 business endpoints of the project, in controller order. The count is part of
+     * The 37 business endpoints of the project, in controller order. The count is part of
      * the story: a missing line here is an endpoint nobody checked.
      */
     private static Stream<Arguments> permissionMatrix() {
@@ -117,7 +117,9 @@ class ApiAuthorizationMatrixTest {
                 // LibraryController
                 Arguments.of(HttpMethod.GET, "/api/v1/libraries", ADMIN_ONLY),
                 Arguments.of(HttpMethod.POST, "/api/v1/libraries", ADMIN_ONLY),
-                Arguments.of(HttpMethod.PUT, "/api/v1/libraries/" + ABSENT_ID, ADMIN_ONLY));
+                Arguments.of(HttpMethod.PUT, "/api/v1/libraries/" + ABSENT_ID, ADMIN_ONLY),
+                Arguments.of(HttpMethod.GET, "/api/v1/libraries/loan-rules", STAFF),
+                Arguments.of(HttpMethod.PUT, "/api/v1/libraries/" + ABSENT_ID + "/loan-rules", ADMIN_ONLY));
     }
 
     @ParameterizedTest(name = "{0} {1}")

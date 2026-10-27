@@ -35,8 +35,6 @@ import java.util.stream.Collectors;
 @Service
 public class HoldServiceImpl implements HoldService {
 
-    private static final int HOLD_PICKUP_WINDOW_WEEKS = 1;
-
     private final HoldRepository holdRepository;
     private final BookRepository bookRepository;
     private final CopyRepository copyRepository;
@@ -153,7 +151,7 @@ public class HoldServiceImpl implements HoldService {
                     hold.setCopy(copy);
                     hold.setStatus(Status.active);
                     hold.setStartDate(today);
-                    hold.setEndDate(today.plusWeeks(HOLD_PICKUP_WINDOW_WEEKS));
+                    hold.setEndDate(today.plusDays(copy.getLibrary().getPickupWindowDays()));
                     holdRepository.saveAndFlush(hold);
                     entityManager.refresh(copy);
 

@@ -21,7 +21,7 @@ import net.booksnap.exception.book.BookNotFoundException;
 import net.booksnap.exception.copy.CopyHasActiveLoanOrHoldException;
 import net.booksnap.exception.copy.CopyNotFoundException;
 import net.booksnap.exception.copy.CopyStatusChangeRefusedException;
-import net.booksnap.domain.library.Library;
+import net.booksnap.domain.library.repository.LibraryRepository;
 import net.booksnap.utils.qr.QRCodeService;
 import net.booksnap.utils.Utils;
 import org.springframework.stereotype.Service;
@@ -39,6 +39,7 @@ public class CopyServiceImpl implements CopyService {
 
     private final CopyRepository copyRepository;
     private final BookRepository bookRepository;
+    private final LibraryRepository libraryRepository;
     private final BorrowingRepository borrowingRepository;
     private final HoldRepository holdRepository;
     private final HoldService holdService;
@@ -49,6 +50,7 @@ public class CopyServiceImpl implements CopyService {
 
     public CopyServiceImpl(CopyRepository copyRepository,
                            BookRepository bookRepository,
+                           LibraryRepository libraryRepository,
                            BorrowingRepository borrowingRepository,
                            HoldRepository holdRepository,
                            HoldService holdService,
@@ -58,6 +60,7 @@ public class CopyServiceImpl implements CopyService {
                            Utils utils) {
         this.copyRepository = copyRepository;
         this.bookRepository = bookRepository;
+        this.libraryRepository = libraryRepository;
         this.borrowingRepository = borrowingRepository;
         this.holdRepository = holdRepository;
         this.holdService = holdService;
@@ -73,7 +76,7 @@ public class CopyServiceImpl implements CopyService {
 
         Copy copy = new Copy();
         copy.setBook(book);
-        copy.setLibrary(new Library(createCopyRequest.libraryId(), null));
+        copy.setLibrary(libraryRepository.getReferenceById(createCopyRequest.libraryId()));
         copy.setStatus(createCopyRequest.status());
         copy.setSectionName(createCopyRequest.sectionName());
 
@@ -162,7 +165,7 @@ public class CopyServiceImpl implements CopyService {
             .orElseThrow(() -> new CopyNotFoundException(copyId));
 
         if (request.libraryId() != null) {
-            existingCopy.setLibrary(new Library(request.libraryId(), null));
+            existingCopy.setLibrary(libraryRepository.getReferenceById(request.libraryId()));
         }
 
         // Update section name and regenerate identification code if section name is provided
