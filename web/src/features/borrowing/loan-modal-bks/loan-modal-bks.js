@@ -141,7 +141,7 @@ export class LoanModalBks extends LitElement {
         ${
           this.hold?.endDate
             ? html`<p class="pickup-detail">
-                To be collected before ${formatDate(this.hold.endDate)}.
+                To be collected by ${formatDate(this.hold.endDate)}.
               </p>`
             : ''
         }

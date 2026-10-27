@@ -149,11 +149,36 @@ public class HoldServiceImpl implements HoldService {
                     entityManager.refresh(copy);
 
                     // TODO: notify the user (hold_ready) once NotificationService exists
-                    log.info("Hold {} promoted to active on copy {}, to collect before {}",
+                    log.info("Hold {} promoted to active on copy {}, to collect by {}",
                             hold.getId(), copy.getId(), hold.getEndDate());
                     return hold.getId();
                 })
                 .orElse(null);
+    }
+
+    /**
+     * Expires an active hold nobody collected and offers its copy to the next student in
+     * line. The expiry is flushed first: the trigger frees the copy, and only a freshly
+     * read 'available' copy can be promoted onto.
+     *
+     * @return false if the hold is gone or no longer active
+     */
+    @Transactional
+    public boolean expireHold(Long holdId) {
+        Hold hold = holdRepository.findById(holdId)
+                .filter(h -> h.getStatus() == Status.active)
+                .orElse(null);
+        if (hold == null) {
+            return false;
+        }
+
+        hold.setStatus(Status.expired);
+        holdRepository.saveAndFlush(hold);
+
+        Copy copy = hold.getCopy();
+        entityManager.refresh(copy);
+        promoteNextPendingHold(copy);
+        return true;
     }
 
     private static HoldResponse toHoldResponse(Hold hold) {

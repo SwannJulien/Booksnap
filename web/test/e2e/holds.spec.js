@@ -185,3 +185,21 @@ test('US-02: a student does not hold the same book twice, even elsewhere', async
   expect(response.status()).toBe(409);
   await expect(page.locator('p.error')).toHaveText(ALREADY_HELD);
 });
+
+test('US-03: the loan modal announces the last pickup day', async ({
+  page,
+}) => {
+  const book = await createBook(page, 'US-03 Matilda');
+  const alice = createStudent('Alice');
+  queryE2eDb(
+    `INSERT INTO hold (book_id, library_id, user_id, copy_id, status, start_date, end_date) VALUES (${book.bookId}, (SELECT id FROM library WHERE name = 'Preschool'), ${alice.id}, ${book.copyId}, 'active', current_date, DATE '2027-03-12')`,
+  );
+
+  await openCatalogCopies(page, book);
+  await openCopyMenu(page, book);
+  await page.getByRole('menuitem', { name: 'Hand over hold' }).click();
+
+  await expect(page.locator('p.pickup-detail')).toHaveText(
+    'To be collected by Mar 12, 2027.',
+  );
+});

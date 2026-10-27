@@ -164,7 +164,8 @@ posée **depuis une copie** :
   servie en premier. La file est par livre **et par bibliothèque** ; si elle est
   vide, la copie reste `available`.
 - **Promotion `pending → active`** : déclenchée par le **retour** d'un emprunt
-  (couche service, `promoteNextPendingHold`). La copie rendue est assignée à la
+  ou l'**expiration** d'une réservation `active` (couche service,
+  `promoteNextPendingHold`). La copie rendue est assignée à la
   tête de file : `status = active`, `start_date = aujourd'hui`,
   `end_date = aujourd'hui + la fenêtre de retrait de la bibliothèque de la copie`.
   La copie passe alors `on_hold`.
@@ -172,8 +173,12 @@ posée **depuis une copie** :
     `damaged` reste `damaged` et n'est pas assignée).
 - **Honorée `active → fulfilled`** : quand l'étudiant concerné emprunte enfin sa
   copie `on_hold` (voir §3, création d'emprunt).
-- **Expiration `→ expired`** : fenêtre de retrait dépassée (`active`) ou attente
-  trop longue en `pending`. ⚠️ *Voir §8 : non encore branché.*
+- **Expiration `→ expired`** :
+  - `active → expired` : le lendemain de `end_date` (le dernier jour de retrait
+    est encore dans les temps). Traitement quotidien à 00:05 et au démarrage
+    (`HoldExpirationScheduler`), acteur `system`. La copie libérée sert la file de
+    sa bibliothèque, comme une copie rendue.
+  - `pending → expired` : attente trop longue. ⚠️ *Voir §8 : non encore branché.*
 
 ### Statut de la copie selon l'état de la réservation
 
@@ -192,7 +197,7 @@ stateDiagram-v2
     [*] --> pending: création (POST /holds)
     pending --> active: promotion au retour d'une copie
     active --> fulfilled: l'étudiant emprunte sa copie
-    active --> expired: fenêtre de retrait dépassée*
+    active --> expired: fenêtre de retrait dépassée
     pending --> expired: attente trop longue*
     fulfilled --> [*]
     expired --> [*]
@@ -289,8 +294,8 @@ stateDiagram-v2
 
 | Constante | Valeur | Où | Devient |
 |---|---|---|---|
-| Durée d'un emprunt | **2 semaines** | `BorrowingServiceImpl.BORROWING_DURATION_WEEKS` | Paramètre |
-| Fenêtre de retrait d'une réservation `active` | **1 semaine** | `BorrowingServiceImpl.HOLD_PICKUP_WINDOW_WEEKS` | Paramètre |
+| Durée d'un emprunt | **14 jours** par défaut, propre à chaque bibliothèque | `library.borrowing_duration_days` | Réglé par l'administrateur |
+| Fenêtre de retrait d'une réservation `active` | **7 jours** par défaut, propre à chaque bibliothèque | `library.pickup_window_days` | Réglé par l'administrateur |
 | Expiration d'une réservation `pending` sans copie | **5 semaines** *(défini)* | CLAUDE.md — *non branché* | Paramètre + `hold.expires_at` |
 | Passage en retard | quotidien 00:05 + au démarrage | `OverdueBorrowingScheduler` | Inchangé |
 
@@ -305,13 +310,14 @@ stateDiagram-v2
 - Création de réservation (`pending`).
 - Promotion `pending → active` au retour d'un emprunt.
 - Honneur `active → fulfilled` à l'emprunt par le réservataire.
+- Expiration `active → expired` le lendemain de `end_date`, et promotion de la
+  réservation suivante.
 
 **Défini (règles/DB/repository présents) mais pas encore automatisé :**
-- **Expiration des réservations** : ni la fenêtre de retrait (`active → expired`
-  après 1 semaine), ni l'attente en `pending` (→ `expired` après 5 semaines) ne
-  sont déclenchées. La requête `HoldRepository.findByStatusAndCreatedDateBefore`
-  existe mais **aucun scheduler ne l'appelle** (contrairement à `overdue`). Les
-  triggers de la règle 4 sont prêts à réagir dès qu'un hold sera passé `expired`.
+- **Expiration des réservations `pending`** : l'attente en `pending` (→ `expired`
+  après 5 semaines) n'est pas déclenchée. La requête
+  `HoldRepository.findByStatusAndCreatedDateBefore` existe mais **aucun scheduler
+  ne l'appelle**.
 - **Notifications** (`hold_ready`, `hold_expired`, `overdue_reminder`…) : type
   `notification` et table présents, mais l'envoi est un `TODO` dans le code
   (`NotificationService` inexistant).
@@ -320,7 +326,7 @@ stateDiagram-v2
 
 | Sujet | Phase |
 |---|---|
-| Scheduler d'expiration des réservations | [Phase 3](implementation/phase-3-parametres-durees/) |
+| Expiration des réservations `pending` | [Phase 3](implementation/phase-3-parametres-durees/) |
 | Couche SMTP (prérequis des notifications) | [Phase 4](implementation/phase-4-gestion-utilisateurs/) |
 | Prolongation d'un emprunt, suspension après retard | [Phase 6](implementation/phase-6-limites-renouvellements-penalites/) |
 

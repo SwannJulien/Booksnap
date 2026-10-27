@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -38,6 +39,10 @@ public interface HoldRepository extends JpaRepository<Hold, Long> {
 
     // Pending holds that waited too long without ever getting a copy
     List<Hold> findByStatusAndCreatedDateBefore(Status status, LocalDateTime cutoff);
+
+    // Active holds whose last pickup day is behind us: end_date itself is still in time
+    @Query("SELECT h.id FROM Hold h WHERE h.status = :status AND h.endDate < :today ORDER BY h.endDate, h.id")
+    List<Long> findIdsByStatusAndEndDateBefore(@Param("status") Status status, @Param("today") LocalDate today);
 
     // A user may only queue once per book (mirrors the uq_hold_one_active_per_user_book index)
     boolean existsByUserIdAndBookIdAndStatusIn(Long userId, Long bookId, List<Status> statuses);

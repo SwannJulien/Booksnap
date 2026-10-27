@@ -15,4 +15,6 @@ public interface HoldService {
     PagedResponse<HoldResponse> getHolds(String q, Status status, Pageable pageable);
 
     Long promoteNextPendingHold(Copy copy);
+
+    boolean expireHold(Long holdId);
 }

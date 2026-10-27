@@ -113,7 +113,7 @@ export class CopyStatusModalBks extends LitElement {
     return html`
       <h2>Copy back on the shelf</h2>
       <p class="set-aside">
-        Set aside for ${firstName} ${lastName}, to collect before
+        Set aside for ${firstName} ${lastName}, to collect by
         ${formatDate(endDate)}.
       </p>
       <div class="button-container">

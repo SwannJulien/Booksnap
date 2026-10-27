@@ -67,6 +67,45 @@ their own (not carried away by the deletion of their book).
 _Avoid_: trash, recycle bin
 _In code_: `archive`
 
+### Accounts
+
+**Account**:
+One person known to BookSnap — a student or a staff member — whether or not they
+can sign in. The account is the person; a password is one way of proving to be
+them, attached to the account.
+_Avoid_: user (in prose, when the person is meant), login, profile
+_In code_: `users` / `User`; the means of signing in is `auth_identity`
+
+**Student**:
+An account whose role is `user`: someone who borrows, never administers.
+_Avoid_: user, member, pupil, élève (in English text)
+_In code_: `Role.user`
+
+**Staff member**:
+An account whose role is `librarian` or `admin`.
+_Avoid_: personnel, employee, staff user
+
+**Role**:
+What an account may administer: student, librarian or admin. One per account,
+school-wide.
+_In code_: `users.role` (`user`, `librarian`, `admin`)
+
+**Deactivated account**:
+An account that can no longer sign in and is no longer offered for new loans,
+but keeps its whole history. The opposite is an _active_ account.
+_Avoid_: disabled, suspended (suspension is a different, dated state), archived
+_In code_: `users.is_active = false`
+
+**Unused account**:
+An account that has never signed in and has no loan, hold or notification — in
+practice, one created by mistake.
+_Avoid_: blank account, empty account, compte vierge (in English text)
+
+**Temporary password**:
+The password generated for a staff member when their account is created, shown
+once to the administrator who created it, to be replaced by its owner.
+_Avoid_: initial password, one-time password (it is not single-use)
+
 ### Settings
 
 **Settings section**:
