@@ -1,0 +1,41 @@
+meta {
+  name: createUser
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{vipa}}/api/v1/users
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "role": "user",
+    "firstName": "Léa",
+    "lastName": "Moreau",
+    "email": "lea.moreau@example.com",
+    "keyStage": "ks_2",
+    "house": "Goya",
+    "parentEmail": "parent.moreau@example.com",
+    "sex": "female"
+  }
+}
+
+docs {
+  admin only. role: user | librarian | admin. keyStage (pre_school, ks_1 … ks_5) is required for a user;
+  house, parentEmail and sex (female | male | other) are optional and ignored for staff.
+  201 returns the account; for librarian and admin it also carries temporaryPassword, shown once and never read back.
+  409 when the email is taken, whatever the case.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

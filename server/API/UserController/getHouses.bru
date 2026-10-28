@@ -1,0 +1,20 @@
+meta {
+  name: getHouses
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{vipa}}/api/v1/users/houses
+  body: none
+  auth: inherit
+}
+
+docs {
+  admin only. The houses already in use, distinct ignoring case, never empty. Feeds the suggestions of the account form.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

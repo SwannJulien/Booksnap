@@ -113,7 +113,7 @@ public class SecurityConfig {
      *
      * <p>The groups below follow the controllers, and every rule names both a method and a
      * path. That is deliberate: with no rule broader than the endpoints it is meant to
-     * cover, moving one line cannot silently mask another. The two places where order
+     * cover, moving one line cannot silently mask another. The three places where order
      * still decides are marked.
      *
      * <p><strong>Library scope does not exist yet.</strong> A {@code LIBRARIAN} passing a
@@ -199,7 +199,10 @@ public class SecurityConfig {
                 // Name, first name and email of every active user. Staff only, and the
                 // student journey must never call it (access rules §4.4).
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/search").hasAnyRole(LIBRARIAN, ADMIN)
+                // Ordered after /search, which `/api/v1/users/*` would otherwise take from the librarians.
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/*").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole(ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/v1/users").hasRole(ADMIN)
 
                 // --- Archive -------------------------------------------------------------
                 .requestMatchers(HttpMethod.GET, "/api/v1/archive/books", "/api/v1/archive/copies").hasAnyRole(LIBRARIAN, ADMIN)

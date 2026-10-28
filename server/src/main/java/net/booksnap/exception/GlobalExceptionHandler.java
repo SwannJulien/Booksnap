@@ -23,6 +23,7 @@ import net.booksnap.exception.hold.HoldRefusalReason;
 import net.booksnap.exception.hold.HoldAlreadyExistsException;
 import net.booksnap.exception.library.LibraryNameTakenException;
 import net.booksnap.exception.library.LibraryNotFoundException;
+import net.booksnap.exception.user.EmailTakenException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
@@ -272,6 +273,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(LibraryNameTakenException.class)
     public ResponseEntity<ApiError> handleLibraryNameTaken(LibraryNameTakenException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(EmailTakenException.class)
+    public ResponseEntity<ApiError> handleEmailTaken(EmailTakenException ex, HttpServletRequest request) {
         ApiError error = new ApiError(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),

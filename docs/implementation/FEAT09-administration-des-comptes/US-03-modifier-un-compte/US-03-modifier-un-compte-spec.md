@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Feature** | Administration des comptes |
-| **Statut** | draft |
+| **Statut** | approved — 2026-10-28 |
 | **Nature** | feature |
 | **Dépend de** | US-02 (formulaire et règles des champs) |
 | **Bloque** | — |
@@ -77,6 +77,10 @@ Règles : [décisions de la feature](../README.md#décisions-valables-pour-toute
   déconnexion. La personne se reconnecte avec la nouvelle adresse et le même
   mot de passe. Validé avec l'utilisateur lors du découpage. Les autres champs
   ne ferment aucune session.
+- **Un changement de la seule casse de l'email compte comme un changement**, et
+  ferme les sessions comme les autres : l'audit et le journal écriraient sinon
+  l'ancienne graphie. Décidé avec l'utilisateur lors du plan (2026-10-28).
+  Rejeté : comparer les adresses sans la casse, ce qui épargnerait les sessions.
 - **Un administrateur peut modifier ses propres informations.** S'il change son
   propre email, sa propre session est fermée comme les autres, et il se
   reconnecte avec la nouvelle adresse.
@@ -145,6 +149,14 @@ When un administrateur remplace son email par "b.johnson@example.com" et clique 
 Then à sa prochaine action, Bob arrive sur l'écran de connexion qui affiche "Your session has expired. Sign in again to carry on where you left off."
 And il se connecte avec "b.johnson@example.com" et son mot de passe habituel
 And la connexion avec "bob.johnson@example.com" affiche "Email or password is incorrect."
+```
+
+### Scenario: changer seulement la casse d'un email ferme les sessions
+
+```gherkin
+Given le bibliothécaire "bob.johnson@example.com", connecté dans un autre navigateur
+When un administrateur remplace son email par "Bob.Johnson@example.com" et clique sur "Save"
+Then à sa prochaine action, Bob arrive sur l'écran de connexion qui affiche "Your session has expired. Sign in again to carry on where you left off."
 ```
 
 ### Scenario: changer un autre champ ne ferme pas les sessions

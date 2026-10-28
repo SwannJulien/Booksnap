@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Feature** | Administration des comptes |
-| **Statut** | draft |
+| **Statut** | approved — 2026-10-28 |
 | **Nature** | feature |
 | **Dépend de** | US-01 (vue « Users ») |
 | **Bloque** | US-03, US-06 |
@@ -436,7 +436,7 @@ Then la colonne created_by de ce compte vaut "alice.martin@example.com"
 
 ## Critères d'acceptation
 
-- [ ] `POST /api/v1/users`
+- [x] `POST /api/v1/users`
       `{ role, firstName, lastName, email, keyStage?, house?, parentEmail?, sex? }`
       → `201` avec le compte créé et, pour un rôle `librarian` ou `admin`
       seulement, un champ `temporaryPassword` ; `400` (`ApiError`) pour un champ
@@ -444,26 +444,26 @@ Then la colonne created_by de ce compte vaut "alice.martin@example.com"
       rôle ou un key stage inconnu ; `409` (`ApiError`,
       `"An account already uses this email."`) pour un email déjà pris ;
       `ADMIN` seulement.
-- [ ] La lecture d'un compte et la liste de US-01 renvoient aussi `keyStage`,
+- [x] La lecture d'un compte et la liste de US-01 renvoient aussi `keyStage`,
       `house`, `parentEmail` et `sex` ; aucune réponse ne contient de mot de
       passe ni de hash, en dehors de `temporaryPassword` à la création.
-- [ ] Les maisons suggérées sont les valeurs non vides de `users.house`,
+- [x] Les maisons suggérées sont les valeurs non vides de `users.house`,
       distinctes sans tenir compte de la casse, servies par une lecture `ADMIN` seulement (déclarée dans
       `SecurityConfig` et dans `ApiAuthorizationMatrixTest`), avec son `.bru`.
-- [ ] Le mot de passe temporaire est produit par un générateur aléatoire
+- [x] Le mot de passe temporaire est produit par un générateur aléatoire
       cryptographique, satisfait `PasswordPolicy`, est stocké haché BCrypt dans
       une identité `local`, et n'apparaît dans aucun log.
-- [ ] Le compte et son identité sont écrits dans la même transaction : un échec
+- [x] Le compte et son identité sont écrits dans la même transaction : un échec
       ne laisse ni compte sans identité pour le personnel, ni identité orpheline.
-- [ ] Les entités mappent les colonnes existantes de `users` sans migration ;
+- [x] Les entités mappent les colonnes existantes de `users` sans migration ;
       `parent_email` déclare le domaine `email` comme `email`
       (`.claude/CLAUDE.md`, « Case-insensitive columns »).
-- [ ] La règle est déclarée dans `SecurityConfig` et ajoutée à
+- [x] La règle est déclarée dans `SecurityConfig` et ajoutée à
       `ApiAuthorizationMatrixTest` comme `ADMIN_ONLY`.
-- [ ] La modale est un composant de `web/src/features/` avec son `-styles.js` ;
+- [x] La modale est un composant de `web/src/features/` avec son `-styles.js` ;
       l'appel API est dans `web/src/api/user.js`, et une erreur `409` y porte
       `error.status`.
-- [ ] Textes de l'interface : bouton « New account », titre de modale « New
+- [x] Textes de l'interface : bouton « New account », titre de modale « New
       account », champs « Role » (« Student », « Librarian », « Admin »),
       « First name », « Last name », « Email », « Key stage » (« Pre-school »,
       « KS-1 » … « KS-5 »), « House », « Parent email », « Sex » (vide,
@@ -474,22 +474,22 @@ Then la colonne created_by de ce compte vaut "alice.martin@example.com"
       « Temporary password: », « Give it to {First name} {Last name} in person.
       It will not be shown again. », boutons « Copy » (puis « Copied ») et
       « Done ».
-- [ ] `GET /api/v1/users/{id}` → `200` avec le compte (mêmes champs qu'un
+- [x] `GET /api/v1/users/{id}` → `200` avec le compte (mêmes champs qu'un
       élément de la liste de US-01, sans `temporaryPassword`) ; `404`
       (`ApiError`) pour un compte inconnu ; `ADMIN` seulement, déclaré dans
       `SecurityConfig` et ajouté à `ApiAuthorizationMatrixTest` comme
       `ADMIN_ONLY`. `GET /api/v1/users/search` reste ouvert au `LIBRARIAN`.
-- [ ] Un `.bru` pour la création, et un pour la lecture d'un compte, dans
+- [x] Un `.bru` pour la création, et un pour la lecture d'un compte, dans
       `server/API/UserController/`.
-- [ ] Critères permanents :
-  - [ ] Chaque scénario a un test automatisé nommé `US-02: <titre du scénario>`
-  - [ ] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
+- [x] Critères permanents :
+  - [x] Chaque scénario a un test automatisé nommé `US-02: <titre du scénario>`
+  - [x] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
         `npm run test:e2e` dans `web/`
-  - [ ] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
-  - [ ] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
-  - [ ] Aucune migration appliquée n'est modifiée
-  - [ ] Le backend démarre avec `ddl-auto=validate`
-  - [ ] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
+  - [x] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
+  - [x] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
+  - [x] Aucune migration appliquée n'est modifiée
+  - [x] Le backend démarre avec `ddl-auto=validate`
+  - [x] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
 
 ---
 

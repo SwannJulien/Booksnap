@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import net.booksnap.domain.Auditable;
+import net.booksnap.domain.book.KeyStage;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
@@ -44,5 +45,20 @@ public class User extends Auditable {
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     private Role role = Role.user;
+
+    @Column(name = "key_stage")
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    private KeyStage keyStage;
+
+    @Column(name = "house")
+    private String house;
+
+    @Column(name = "parent_email", columnDefinition = "email")
+    private String parentEmail;
+
+    // Free text in the database (the column is called genre); the API narrows it to Sex.
+    @Column(name = "genre")
+    private String sex;
 
 }

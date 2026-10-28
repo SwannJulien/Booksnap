@@ -5,6 +5,8 @@ import { sharedStyles } from '../../shared-styles.js';
 import { getUsers } from '../../api/user.js';
 import '../../components/spinner-bks/spinner-bks.js';
 import '../../components/pagination-bks/pagination-bks.js';
+import '../../components/button-bks/button-bks.js';
+import '../../features/user/account-modal-bks/account-modal-bks.js';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -29,6 +31,7 @@ export class UsersView extends LitElement {
     _committedQuery: { type: String, state: true },
     _role: { type: String, state: true },
     _status: { type: String, state: true },
+    _creating: { type: Boolean, state: true },
   };
 
   constructor() {
@@ -38,6 +41,7 @@ export class UsersView extends LitElement {
     this._committedQuery = '';
     this._role = '';
     this._status = 'active';
+    this._creating = false;
     this._debounceTimer = null;
   }
 
@@ -53,8 +57,20 @@ export class UsersView extends LitElement {
 
   render() {
     return html`
-      <h1>Users</h1>
-      <p class="subtitle">Every student and staff member who has an account.</p>
+      <div class="header">
+        <div>
+          <h1>Users</h1>
+          <p class="subtitle">
+            Every student and staff member who has an account.
+          </p>
+        </div>
+        <button-bks
+          label="New account"
+          @button-click=${() => {
+            this._creating = true;
+          }}
+        ></button-bks>
+      </div>
       <div class="toolbar">
         <input
           name="search"
@@ -93,6 +109,13 @@ export class UsersView extends LitElement {
         error: () =>
           html`<p role="alert">The accounts could not be loaded.</p>`,
       })}
+      <account-modal-bks
+        ?open=${this._creating}
+        @modal-close=${() => {
+          this._creating = false;
+        }}
+        @account-created=${() => this.listTask.run()}
+      ></account-modal-bks>
     `;
   }
 

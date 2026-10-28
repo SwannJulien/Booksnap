@@ -7,6 +7,13 @@ export const usersView = css`
     max-width: 1280px;
   }
 
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
   .subtitle {
     color: var(--clr-text-muted);
   }

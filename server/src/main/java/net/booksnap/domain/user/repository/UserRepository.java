@@ -49,6 +49,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    // citext + stringtype=unspecified: ignores case
+    boolean existsByEmail(String email);
+
+    @Query("""
+            SELECT MIN(u.house) FROM User u
+            WHERE TRIM(u.house) <> ''
+            GROUP BY LOWER(u.house)
+            ORDER BY MIN(u.house)
+            """)
+    List<String> findDistinctHouses();
+
     /**
      * Whether anyone at all can administer the application. Read at startup by
      * {@code AdminBootstrapRunner}: false is what opens the bootstrap door, and the row

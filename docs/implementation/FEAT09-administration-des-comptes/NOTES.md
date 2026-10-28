@@ -66,3 +66,47 @@
   Found: review US-01, 2026-10-28. Affects: un `prettier --write` sur `booksnap-app.js` mêle une
   réécriture de mise en forme au diff de la story ; juger le lint sur les fichiers de la story, pas sur
   le code de sortie.
+
+- **Un build ou un `./mvnw` lancé dans `server/` pendant `npm run test:e2e` coupe le backend e2e.**
+  `spring-boot-devtools` (`server/pom.xml`) redémarre l'application quand `server/target/classes`
+  est réécrit, et `run-e2e-backend.sh` lance `spring-boot:run` depuis ce même arbre ; pendant le
+  redémarrage le proxy Vite répond `ECONNREFUSED 127.0.0.1:8180` et les tests en cours échouent à la
+  connexion (`waitForURL`) ou sur un sélecteur absent. Au démarrage, un test qui ne compile pas dans
+  `src/test` fait sortir le serveur web avec `Process from config.webServer was not able to start`.
+  Found: build US-01, 2026-10-28 (3 échecs sur 96 coïncidant avec les écritures d'une autre session
+  dans `server/src/test` ; le redémarrage lui-même n'a pas été observé dans les logs).
+  Affects: ne pas lancer la suite e2e pendant qu'un autre agent ou l'IDE construit le même arbre ;
+  deux stories construites en parallèle dans un seul répertoire de travail se gênent.
+
+- **`input[name="student-search"]` désigne deux champs sur la page du catalogue : celui de `loan-modal-bks` et celui de `hold-modal-bks`.**
+  `web/src/features/borrowing/loan-modal-bks/loan-modal-bks.js:170`, `web/src/features/hold/hold-modal-bks/hold-modal-bks.js:89`.
+  Found: build US-02, 2026-10-28. Affects: un test e2e qui remplit ce champ échoue en mode strict de Playwright ;
+  viser le placeholder (`getByPlaceholder('Search a student...')` pour le prêt). La modale de prêt s'ouvre d'abord sur
+  « Do you want to make a loan? » : cliquer « Yes » avant de chercher.
+
+
+- **Après l'expiration d'une session, un rechargement de page mène à l'écran de connexion sans « Your session has expired… ».**
+  Le `401` de `/auth/me` est exempté (`SELF_REPORTING_PATHS`) et lu comme « pas connecté » ; seul un `401` sur un autre appel
+  déclenche `SESSION_EXPIRED_EVENT`. `web/src/api/http.js` (`announceRefusal`).
+  Found: plan US-03, 2026-10-28. Affects: les tests e2e « à sa prochaine action » (US-03, US-04, US-05) doivent naviguer dans
+  l'application (un lien qui charge des données), pas appeler `page.reload()`.
+
+- **Les comptes du personnel des fixtures portent des données d'élève.** Bob Johnson a `ks_3` / `Velazquez`, Alice Martin
+  `ks_2` / `Goya`, avec sexe et email parent. `server/sql/seed.sql` (lignes 9-10), `server/sql/e2e-accounts.sql` (rôles).
+  Found: plan US-03, 2026-10-28. Affects: US-03 (les champs d'élève d'un membre du personnel sont ignorés, donc conservés) ;
+  US-04 (« Bob Johnson, sans key stage » doit être préparé avec `queryE2eDb`).
+
+- **Les tests e2e de « Users » affirment la liste exacte des colonnes et des cellules d'une ligne.**
+  `web/test/e2e/users-view.spec.js` (`columnheader` → `toHaveText([...])`), `web/test/e2e/create-account.spec.js`
+  (`row.locator('td')` → `toHaveText([...])`).
+  Found: plan US-03, 2026-10-28. Affects: toute colonne ajoutée à la table (US-03 ajoute « Actions ») change ces deux tests.
+
+- **Les emails de `ACCOUNTS` sont écrits en dur dans les helpers e2e.** `web/test/e2e/support/accounts.js`, `signIn`.
+  Found: plan US-03, 2026-10-28. Affects: un test qui change l'email d'Alice, Bob ou Clara doit le restaurer en `afterEach`,
+  par id ; sinon tous les tests suivants qui se connectent avec ce compte échouent.
+
+- **`users.first_name` et `users.last_name` sont `varchar(255)`, et `CreateUserRequest` n'a aucun `@Size` : un nom de plus de 255 caractères répond `500`.**
+  `\d users` ; `server/src/main/java/net/booksnap/domain/user/api/dto/CreateUserRequest.java` ; le modèle est
+  `LibraryNameRequest` (`@Size(max = 255)`, trim dans le constructeur compact).
+  Found: review US-02, 2026-10-28 (300 caractères dans `firstName` : `500` « Internal server error »).
+  Affects: US-03 (modifier un compte) écrit les mêmes colonnes ; la requête de modification doit porter la même limite.
