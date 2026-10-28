@@ -5,6 +5,7 @@ import { booksnapApp } from './booksnap-app-styles.js';
 import {
   clearAuthenticatedUser,
   getAuthenticatedUser,
+  isAdmin,
   isAuthenticated,
   isStaff,
   loadSession,
@@ -108,6 +109,12 @@ class BooksnapApp extends LitElement {
         () => import('./views/archive-view/archive-view.js'),
       ),
       this._protectedRoute(
+        '/users',
+        'users-view',
+        () => import('./views/users-view/users-view.js'),
+        { adminOnly: true },
+      ),
+      this._protectedRoute(
         '/settings',
         'settings-view',
         () => import('./views/settings-view/settings-view.js'),
@@ -168,8 +175,9 @@ class BooksnapApp extends LitElement {
    * @param {string} path
    * @param {string} component tag name the router mounts when the guard passes
    * @param {() => Promise<unknown>} [loadView] dynamic import, omitted for eagerly imported views
+   * @param {{ adminOnly?: boolean }} [options] adminOnly sends any other role home
    */
-  _protectedRoute(path, component, loadView) {
+  _protectedRoute(path, component, loadView, { adminOnly = false } = {}) {
     return {
       path,
       component,
@@ -179,6 +187,12 @@ class BooksnapApp extends LitElement {
           // that was asked for is gone from both the URL and the context.
           rememberDestination(`${context.pathname}${context.search ?? ''}`);
           return commands.redirect(LOGIN_PATH);
+        }
+
+        // Before the import and the entry marking: the view's code is never fetched, and no
+        // entry is marked for a link this role does not have.
+        if (adminOnly && !isAdmin()) {
+          return commands.redirect(HOME_PATH);
         }
 
         // Before the import, not after: on a URL opened directly there is no click to have
@@ -552,6 +566,21 @@ class BooksnapApp extends LitElement {
                     />
                   </svg>
                   <span>Archive</span>
+                </a>
+              </li>`
+            : ''}
+          ${isAdmin()
+            ? html`<li>
+                <a href="/users" @click=${this.toggleActive}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                  >
+                    <path
+                      d="M0-240v-63q0-43 44-70t116-27q13 0 25 .5t23 2.5q-14 21-21 44t-7 48v65H0Zm240 0v-65q0-32 17.500-58.500T307-410q32-20 76.500-30t96.500-10q53 0 97.500 10t77.500 30q32 20 49.500 46.500T731-305v65H240Zm540 0v-65q0-26-6.500-49T754-397q11-2 22.500-2.500t23.500-.5q72 0 116 26.500t44 70.500v63H780ZM160-440q-33 0-56.500-23.500T80-520q0-34 23.500-57t56.500-23q34 0 57 23t23 57q0 33-23 56.500T160-440Zm640 0q-33 0-56.500-23.500T720-520q0-34 23.500-57t56.500-23q34 0 57 23t23 57q0 33-23 56.500T800-440Zm-320-40q-50 0-85-35t-35-85q0-51 35-85.500t85-34.500q51 0 85.500 34.500T600-600q0 50-34.500 85T480-480Z"
+                    />
+                  </svg>
+                  <span>Users</span>
                 </a>
               </li>`
             : ''}

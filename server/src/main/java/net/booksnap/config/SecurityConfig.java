@@ -199,6 +199,7 @@ public class SecurityConfig {
                 // Name, first name and email of every active user. Staff only, and the
                 // student journey must never call it (access rules §4.4).
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/search").hasAnyRole(LIBRARIAN, ADMIN)
+                .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole(ADMIN)
 
                 // --- Archive -------------------------------------------------------------
                 .requestMatchers(HttpMethod.GET, "/api/v1/archive/books", "/api/v1/archive/copies").hasAnyRole(LIBRARIAN, ADMIN)

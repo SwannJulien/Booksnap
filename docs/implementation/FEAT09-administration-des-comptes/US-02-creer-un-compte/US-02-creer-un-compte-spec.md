@@ -32,7 +32,10 @@ n'écrive un `INSERT` dans `psql`.
 `server/sql/seed.sql`, un `INSERT` à la main, ou `AdminBootstrapRunner`
 (`server/src/main/java/net/booksnap/config/AdminBootstrapRunner.java`), qui
 crée le premier administrateur au démarrage quand aucun n'existe. Aucun
-endpoint n'écrit dans `users`.
+endpoint n'écrit dans `users`, et aucun ne lit un compte seul :
+`UserController` (`server/src/main/java/net/booksnap/domain/user/api/UserController.java`)
+n'expose que la liste `GET /api/v1/users` (US-01) et la recherche du comptoir
+`GET /api/v1/users/search`.
 
 ### Le compte et le moyen de se connecter sont deux lignes
 
@@ -126,6 +129,11 @@ Règles : [règles accès §5.1 et §5.3](../../../business-rules/REGLES-METIER-
   valeurs existantes, et la liste sans « Other ». À confronter au format réel
   lors de l'import iSAMS.
 - **Aucune bibliothèque n'est demandée** (décision de la feature).
+- **Un compte se lit aussi seul, par son id**, en plus de la liste de US-01 : c'est
+  la « lecture d'un compte » des scénarios. Décidé avec l'utilisateur lors du plan
+  (2026-10-28). Rejeté : se contenter de la liste filtrée par email. Les mentions
+  « La lecture d'un compte (liste de US-01) » de US-04 et US-06 restent vraies : la
+  liste et la lecture d'un compte renvoient les mêmes champs.
 
 **Hors périmètre de cette story** : modifier un compte (US-03) ; l'invitation
 par email et l'activation (feature B du backlog) ; l'import en masse
@@ -394,6 +402,28 @@ Examples:
   | USER      |
 ```
 
+### Scenario: lire un compte qui n'existe pas
+
+```gherkin
+Given un administrateur connecté
+When il lit par l'API un compte qui n'existe pas
+Then la réponse est 404
+```
+
+### Scenario: seul l'administrateur lit un compte
+
+```gherkin
+Given le compte de Léa Moreau
+And un utilisateur connecté de rôle "<rôle>"
+When il lit ce compte par l'API
+Then la réponse est 403
+
+Examples:
+  | rôle      |
+  | LIBRARIAN |
+  | USER      |
+```
+
 ### Scenario: l'auteur de la création est enregistré
 
 ```gherkin
@@ -444,7 +474,13 @@ Then la colonne created_by de ce compte vaut "alice.martin@example.com"
       « Temporary password: », « Give it to {First name} {Last name} in person.
       It will not be shown again. », boutons « Copy » (puis « Copied ») et
       « Done ».
-- [ ] Un `.bru` pour la création dans `server/API/UserController/`.
+- [ ] `GET /api/v1/users/{id}` → `200` avec le compte (mêmes champs qu'un
+      élément de la liste de US-01, sans `temporaryPassword`) ; `404`
+      (`ApiError`) pour un compte inconnu ; `ADMIN` seulement, déclaré dans
+      `SecurityConfig` et ajouté à `ApiAuthorizationMatrixTest` comme
+      `ADMIN_ONLY`. `GET /api/v1/users/search` reste ouvert au `LIBRARIAN`.
+- [ ] Un `.bru` pour la création, et un pour la lecture d'un compte, dans
+      `server/API/UserController/`.
 - [ ] Critères permanents :
   - [ ] Chaque scénario a un test automatisé nommé `US-02: <titre du scénario>`
   - [ ] Toute la suite passe (`./mvnw -q test` depuis `server/`), et

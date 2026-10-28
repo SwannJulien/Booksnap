@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Feature** | Administration des comptes |
-| **Statut** | draft |
+| **Statut** | approved |
 | **Nature** | feature |
 | **Dépend de** | — |
 | **Bloque** | US-02, US-04, US-05 |
@@ -258,20 +258,20 @@ Then la réponse est 401
 
 ## Critères d'acceptation
 
-- [ ] `GET /api/v1/users` → `200` avec un `PagedResponse` dont chaque élément
+- [x] `GET /api/v1/users` → `200` avec un `PagedResponse` dont chaque élément
       contient au moins `{ id, firstName, lastName, email, role, active }` ;
       paramètres `q` (facultatif), `role` (`user`, `librarian`, `admin`,
       facultatif), `status` (`active` par défaut, `deactivated`, `all`),
       pagination 1-based comme `PagedResponse.PageInfo`, taille 10 par défaut.
       `ADMIN` seulement ; `400` (`ApiError`) pour une valeur de `role` ou de
       `status` inconnue.
-- [ ] La règle est déclarée dans `SecurityConfig` et ajoutée à
+- [x] La règle est déclarée dans `SecurityConfig` et ajoutée à
       `ApiAuthorizationMatrixTest` comme `ADMIN_ONLY`. `GET /api/v1/users/search`
       et son contrat sont inchangés.
-- [ ] La vue est un composant de `web/src/views/` avec son `-styles.js`, routée
+- [x] La vue est un composant de `web/src/views/` avec son `-styles.js`, routée
       sur `/users` ; l'entrée de navigation « Users » n'est rendue que pour
       `isAdmin()`.
-- [ ] Textes de l'interface : entrée de navigation « Users », titre « Users »,
+- [x] Textes de l'interface : entrée de navigation « Users », titre « Users »,
       sous-titre « Every student and staff member who has an account. »,
       colonnes « Name », « Email », « Role », « Status », libellés de rôle
       « Student », « Librarian », « Admin », de statut « Active »,
@@ -279,16 +279,16 @@ Then la réponse est 401
       (« All roles », « Student », « Librarian », « Admin ») et « Status »
       (« Active », « Deactivated », « All statuses »), liste vide « No account
       matches your search. », erreur « The accounts could not be loaded. »
-- [ ] Un `.bru` pour la lecture de la liste dans `server/API/UserController/`.
-- [ ] Critères permanents :
-  - [ ] Chaque scénario a un test automatisé nommé `US-01: <titre du scénario>`
-  - [ ] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
+- [x] Un `.bru` pour la lecture de la liste dans `server/API/UserController/`.
+- [x] Critères permanents :
+  - [x] Chaque scénario a un test automatisé nommé `US-01: <titre du scénario>`
+  - [x] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
         `npm run test:e2e` dans `web/`
-  - [ ] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
-  - [ ] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
-  - [ ] Aucune migration appliquée n'est modifiée
-  - [ ] Le backend démarre avec `ddl-auto=validate`
-  - [ ] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
+  - [x] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
+  - [x] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
+  - [x] Aucune migration appliquée n'est modifiée
+  - [x] Le backend démarre avec `ddl-auto=validate`
+  - [x] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
 
 ---
 

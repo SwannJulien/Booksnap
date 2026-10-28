@@ -1,0 +1,28 @@
+meta {
+  name: getUsers
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{vipa}}/api/v1/users?page&size&q&role&status
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page:
+  size:
+  q:
+  role:
+  status:
+}
+
+docs {
+  admin only. role: user | librarian | admin. status: active (default) | deactivated | all.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
