@@ -24,6 +24,11 @@
       - [Terminal 3 - Frontend](#terminal-3---frontend)
       - [Avantages de cette approche](#avantages-de-cette-approche)
     - [Charger les fixtures de développement](#charger-les-fixtures-de-développement)
+    - [Environnement des vérifications de bout en bout](#environnement-des-vérifications-de-bout-en-bout)
+      - [Mise en place](#mise-en-place)
+      - [Repartir de zéro](#repartir-de-zéro)
+      - [À savoir](#à-savoir)
+    - [Tests de bout en bout automatisés (Playwright)](#tests-de-bout-en-bout-automatisés-playwright)
     - [Option 2 : Tout en Docker (Simulation Production)](#option-2--tout-en-docker-simulation-production)
       - [Quand utiliser cette option ?](#quand-utiliser-cette-option-)
     - [Comparaison des Approches](#comparaison-des-approches)
@@ -216,8 +221,14 @@ docker compose up db pgadmin
 
 #### Terminal 2 - Backend
 
-Lancer **depuis IntelliJ IDEA** (voir [Configuration IDE](#configuration-ide)) — pas en
-ligne de commande : il n'y a ni Maven sur le PATH ni wrapper `mvnw` dans `server/`.
+Lancer **depuis IntelliJ IDEA** (voir [Configuration IDE](#configuration-ide)), ou en
+ligne de commande avec le wrapper Maven — il n'y a pas de Maven sur le PATH, et le
+wrapper se lance **depuis `server/`** : spring-dotenv lit `server/.env` dans le
+répertoire courant, c'est de là que viennent les identifiants de la base.
+
+```bash
+cd server && ./mvnw spring-boot:run
+```
 
 > **Note** : Les variables d'environnement (`DB_HOST`, `POSTGRES_USER`, etc.) doivent être configurées dans votre IDE. Voir la section [Configuration IDE](#configuration-ide).
 >
@@ -269,6 +280,128 @@ Dewey depuis `V2__dewey_reference_data.sql`, puis rejoue `seed.sql` et
 `covers.sql`. Ne pas jouer `server/sql/reset.sql` seul — il ne vide ni Dewey ni
 `cover`, ce que `reset-dev-db.sh` gère. Les deux scripts acceptent
 `--database NOM` et `--yes`.
+
+---
+
+### Environnement des vérifications de bout en bout
+
+Chaque spec (`docs/implementation/…/US-NN-…-spec.md`) se termine par une
+section **Vérification de bout en bout** : un parcours manuel dans le
+navigateur, avec Alice (admin), Bob (bibliothécaire) et Clara (élève). Ce
+parcours se joue sur la **base jetable `booksnap_e2e`**, pas sur la base de
+développement : les prêts et les réservations laissent des lignes définitives
+dans `lifecycle_event`, et les comptes Alice/Bob/Clara n'existent que là.
+
+L'environnement tourne sur ses propres ports, **`:8180`** (backend) et
+**`:5180`** (frontend). Il ne touche ni à `:8080`, ni à `:5000`, ni à la base de
+développement : un backend lancé depuis IntelliJ peut continuer à tourner à
+côté.
+
+#### Mise en place
+
+```bash
+# 0. La base du conteneur
+docker compose up -d db
+
+# 1. Terminal 1 — backend sur :8180. Le script supprime et recrée
+#    booksnap_e2e, puis Flyway y construit le schéma au démarrage.
+cd server
+BOOKSNAP_E2E_BACKEND_PORT=8180 scripts/run-e2e-backend.sh --database booksnap_e2e
+
+# 2. Terminal 2 — une fois le backend démarré
+#    (curl http://127.0.0.1:8180/actuator/health répond UP)
+server/scripts/load-dev-fixtures.sh --database booksnap_e2e --yes
+BOOKSNAP_E2E_PASSWORD=<mot de passe> server/scripts/load-e2e-accounts.sh --database booksnap_e2e
+
+# 3. Terminal 2 — frontend sur :5180, avec un proxy /api vers :8180
+cd web
+BOOKSNAP_API_ORIGIN=http://127.0.0.1:8180 npx vite --port 5180 --strictPort
+```
+
+Le mot de passe est la constante `E2E_PASSWORD` de
+`web/test/e2e/support/accounts.js`, partagée par les trois comptes.
+
+Ouvrir ensuite **http://localhost:5180**. Pour jouer deux personnes à la fois
+(Alice et Bob), ouvrir un second navigateur ou une fenêtre privée : la session
+est un cookie, une seule par navigateur.
+
+| Personne | Rôle | Email |
+|---|---|---|
+| Alice Martin | admin | `alice.martin@example.com` |
+| Bob Johnson | librarian | `bob.johnson@example.com` |
+| Clara Dupont | user (élève) | `clara.dupont@example.com` |
+
+Les fixtures contiennent aussi six autres élèves (Daniel Smith, Emma Wilson…),
+10 livres et 20 copies. Ces élèves n'ont pas de mot de passe : ils servent de
+cibles (emprunteurs, doublons d'email…), on ne se connecte pas avec. Quand une
+vérification a besoin d'un état particulier (un second administrateur, par
+exemple), la spec indique la requête à jouer dans `psql` :
+
+```bash
+docker exec -it booksnap-postgres sh -c 'psql -U "$POSTGRES_USER" -d booksnap_e2e'
+```
+
+#### Repartir de zéro
+
+Arrêter le backend (Ctrl+C dans le terminal 1), puis rejouer les étapes 1 et 2 :
+la base est recréée vide à chaque lancement de `run-e2e-backend.sh`. Vite peut
+continuer à tourner.
+
+Il n'y a donc **rien à nettoyer** après une vérification sur `booksnap_e2e`.
+
+#### À savoir
+
+- **La suite automatique utilise les mêmes ports et la même base.**
+  `npm run test:e2e` refuse de démarrer si `:8180` ou `:5180` sont occupés, et
+  recrée `booksnap_e2e` à chaque exécution. Arrêter l'environnement manuel avant
+  de lancer la suite, et inversement.
+- **Le backend lancé par le script se recompile** à chaque démarrage : il
+  reflète donc le code courant de la branche. Après une modification du
+  backend, il faut le relancer (étapes 1 et 2). Vite, lui, recharge le front à
+  chaud.
+- **Fixtures d'abord, comptes ensuite, après chaque démarrage du backend.**
+  `load-e2e-accounts.sh` ne crée pas d'utilisateurs : il donne un rôle et un mot
+  de passe à Alice, Bob et Clara, qui viennent des fixtures. S'il répond
+  `expected 3 local accounts … found 0`, les fixtures ne sont pas chargées :
+  soit l'étape a été sautée, soit le backend a été relancé depuis, ce qui
+  recrée la base vide.
+- **Pas de compte admin de bootstrap** sur cette base : le script le désactive,
+  car les fixtures apportent leurs propres comptes.
+- **Port déjà pris** : `ss -ltnp | grep -E '8180|5180'` montre le processus,
+  souvent un reste d'une exécution interrompue. Attention : `run-e2e-backend.sh`
+  recrée la base **avant** que Spring ne découvre que le port est occupé. Un
+  lancement en double vide donc `booksnap_e2e` sous le backend déjà en place.
+  Arrêter les deux, puis tout relancer (étapes 1 et 2).
+
+---
+
+### Tests de bout en bout automatisés (Playwright)
+
+Les scénarios des specs sont aussi écrits comme tests Playwright dans
+`web/test/e2e/`. La suite monte elle-même l'environnement décrit ci-dessus
+(même base jetable, mêmes ports, mêmes comptes), puis l'arrête à la fin :
+
+```bash
+cd web
+
+# Toute la suite (installe Chromium au premier lancement)
+npm run test:e2e
+
+# Un seul fichier
+npx playwright test edit-account.spec.js
+
+# Les tests d'une US, ou un test par son titre
+npx playwright test -g "US-03"
+npx playwright test -g "correcting a name"
+
+# Mode interactif, pour voir le navigateur et rejouer pas à pas
+npx playwright test --ui
+```
+
+Après un échec : `npx playwright show-report` affiche le rapport HTML, et
+`web/test-results/` contient une trace par test en échec (DOM, réseau, console),
+à ouvrir avec `npx playwright show-trace <fichier>.zip`. La base `booksnap_e2e`
+reste en place après l'exécution, on peut l'inspecter avec `psql`.
 
 ---
 
@@ -651,27 +784,31 @@ docker compose ps
 
 ### Commandes Backend (Maven)
 
-> Il n'y a **ni Maven sur le PATH ni wrapper `mvnw`** dans `server/` — ces
-> commandes ne sont pas exécutables telles quelles depuis ce shell. Lancer et
-> tester le backend **depuis IntelliJ IDEA** (voir
-> [Configuration IDE](#configuration-ide)). Elles restent utiles pour se
-> repérer dans les runs/configurations équivalentes côté IDE.
+> Il n'y a **pas de Maven sur le PATH** : on passe par le wrapper `./mvnw`,
+> toujours **depuis `server/`** (spring-dotenv y lit `server/.env`). Les tests
+> sont des `@SpringBootTest` sur la base de développement : il faut que
+> `docker compose up -d db` tourne.
 
 ```bash
+cd server
+
 # Lancer l'application
-mvn spring-boot:run
+./mvnw spring-boot:run
 
 # Avec un profil spécifique
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 
 # Lancer les tests
-mvn test
+./mvnw -q test
+
+# Une seule classe de test
+./mvnw -q test -Dtest=NomDeLaClasse
 
 # Build sans tests
-mvn clean package -DskipTests
+./mvnw clean package -DskipTests
 
 # Vérifier les dépendances
-mvn dependency:tree
+./mvnw dependency:tree
 ```
 
 ### Commandes Frontend (Vite)
@@ -696,6 +833,9 @@ npm run preview
 
 # Linter
 npm run lint
+
+# Tests de bout en bout (base PostgreSQL du conteneur requise)
+npm run test:e2e
 ```
 
 ### Cheatsheet Rapide
@@ -703,7 +843,7 @@ npm run lint
 ```bash
 # DEV QUOTIDIEN
 docker compose up db          # Terminal 1
-# Backend : lancer depuis IntelliJ IDEA (pas de mvn/mvnw en CLI) — Terminal 2
+# Backend : depuis IntelliJ IDEA, ou `cd server && ./mvnw spring-boot:run` — Terminal 2
 npm run dev                   # Terminal 3 (web/)
 
 # Première fois sur un volume neuf : charger les fixtures une fois le backend démarré
@@ -711,6 +851,13 @@ server/scripts/load-dev-fixtures.sh
 
 # TEST INTÉGRATION
 docker compose up --build
+
+# TESTS
+cd server && ./mvnw -q test   # backend (base de dev)
+cd web && npm run test:e2e    # bout en bout (base jetable booksnap_e2e)
+
+# VÉRIFICATION DE BOUT EN BOUT D'UNE SPEC (:8180 + :5180, base booksnap_e2e)
+# voir "Environnement des vérifications de bout en bout"
 
 # RESET DES DONNÉES (garde le schéma et le volume)
 server/scripts/reset-dev-db.sh
@@ -727,4 +874,4 @@ docker compose logs -f frontend
 
 ---
 
-**Dernière mise à jour** : 2026-08-20
+**Dernière mise à jour** : 2026-11-01
