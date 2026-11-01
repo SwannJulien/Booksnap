@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { Task } from '@lit/task';
 import { usersView } from './users-view-styles.js';
 import { sharedStyles } from '../../shared-styles.js';
@@ -6,9 +6,15 @@ import { getUsers } from '../../api/user.js';
 import '../../components/spinner-bks/spinner-bks.js';
 import '../../components/pagination-bks/pagination-bks.js';
 import '../../components/button-bks/button-bks.js';
+import '../../components/dropdown-bks/dropdown-bks.js';
 import '../../features/user/account-modal-bks/account-modal-bks.js';
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+const MORE_ACTIONS_ICON_PATH =
+  'M480-160q-33 0-56.5-23.5T400-240q0-33 23.5-56.5T480-320q33 0 56.5 23.5T560-240q0 33-23.5 56.5T480-160Zm0-240q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm0-240q-33 0-56.5-23.5T400-720q0-33 23.5-56.5T480-800q33 0 56.5 23.5T560-720q0 33-23.5 56.5T480-640Z';
+const EDIT_ICON_PATH =
+  'M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z';
 
 const ROLE_LABELS = {
   user: 'Student',
@@ -32,6 +38,8 @@ export class UsersView extends LitElement {
     _role: { type: String, state: true },
     _status: { type: String, state: true },
     _creating: { type: Boolean, state: true },
+    _editing: { type: Object, state: true },
+    _openActionMenuId: { state: true },
   };
 
   constructor() {
@@ -42,11 +50,20 @@ export class UsersView extends LitElement {
     this._role = '';
     this._status = 'active';
     this._creating = false;
+    this._editing = null;
+    this._openActionMenuId = null;
     this._debounceTimer = null;
+    this._handleOutsideClick = this._handleOutsideClick.bind(this);
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('click', this._handleOutsideClick);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener('click', this._handleOutsideClick);
     clearTimeout(this._debounceTimer);
   }
 
@@ -110,11 +127,14 @@ export class UsersView extends LitElement {
           html`<p role="alert">The accounts could not be loaded.</p>`,
       })}
       <account-modal-bks
-        ?open=${this._creating}
+        .account=${this._editing}
+        ?open=${this._creating || !!this._editing}
         @modal-close=${() => {
           this._creating = false;
+          this._editing = null;
         }}
         @account-created=${() => this.listTask.run()}
+        @account-updated=${() => this.listTask.run()}
       ></account-modal-bks>
     `;
   }
@@ -132,10 +152,11 @@ export class UsersView extends LitElement {
             <th>Email</th>
             <th>Role</th>
             <th>Status</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          ${users.data.map(user => UsersView._rowTpl(user))}
+          ${users.data.map(user => this._rowTpl(user))}
         </tbody>
       </table>
       <pagination-bks
@@ -146,7 +167,8 @@ export class UsersView extends LitElement {
     `;
   }
 
-  static _rowTpl(user) {
+  _rowTpl(user) {
+    const isMenuOpen = this._openActionMenuId === user.id;
     const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
 
     return html`
@@ -159,8 +181,67 @@ export class UsersView extends LitElement {
             ${user.active ? 'Active' : 'Deactivated'}
           </span>
         </td>
+        <td>
+          <div class="action-menu-wrapper">
+            <button
+              class="action-btn ${isMenuOpen ? 'active' : ''}"
+              aria-label="More actions"
+              @click=${() => this._handleToggleActionMenu(user.id)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+                <path d=${MORE_ACTIONS_ICON_PATH} />
+              </svg>
+            </button>
+            ${isMenuOpen
+              ? html`
+                  <dropdown-bks
+                    .options=${[
+                      {
+                        action: 'edit',
+                        data: user,
+                        path: EDIT_ICON_PATH,
+                        label: 'Edit',
+                      },
+                    ]}
+                    @dropdown-selected-option=${this._handleDropdownAction}
+                  ></dropdown-bks>
+                `
+              : nothing}
+          </div>
+        </td>
       </tr>
     `;
+  }
+
+  _handleToggleActionMenu(userId) {
+    this._openActionMenuId = this._openActionMenuId === userId ? null : userId;
+  }
+
+  _handleOutsideClick(e) {
+    if (!this._openActionMenuId) return;
+    const clickedOnMenu = e
+      .composedPath()
+      .some(
+        el =>
+          el.classList?.contains('action-dropdown') ||
+          el.classList?.contains('action-btn'),
+      );
+    if (!clickedOnMenu) {
+      this._openActionMenuId = null;
+    }
+  }
+
+  _handleDropdownAction(e) {
+    const { action, data } = e.detail;
+    this._openActionMenuId = null;
+
+    switch (action) {
+      case 'edit':
+        this._editing = data;
+        break;
+      default:
+        break;
+    }
   }
 
   _handleSearchInput(e) {

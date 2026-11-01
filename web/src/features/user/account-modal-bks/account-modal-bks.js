@@ -1,13 +1,14 @@
 import { LitElement, html, nothing } from 'lit';
 import { accountModalBksStyles } from './account-modal-bks-styles.js';
-import { createUser, getHouses } from '../../../api/user.js';
+import { createUser, getHouses, updateUser } from '../../../api/user.js';
 import '../../../components/modal-bks/modal-bks.js';
 import '../../../components/button-bks/button-bks.js';
 
 const REQUIRED = 'This field is required.';
 const INVALID_EMAIL = 'Enter a valid email address.';
 const EMAIL_TAKEN = 'An account already uses this email.';
-const GENERIC_ERROR = 'The account could not be created.';
+const CREATE_ERROR = 'The account could not be created.';
+const SAVE_ERROR = 'The account could not be saved.';
 
 const NAME_MAX_LENGTH = 255;
 
@@ -53,6 +54,7 @@ export class AccountModalBks extends LitElement {
 
   static properties = {
     open: { type: Boolean, reflect: true },
+    account: { type: Object },
     _form: { type: Object, state: true },
     _errors: { type: Object, state: true },
     _formError: { type: String, state: true },
@@ -66,7 +68,14 @@ export class AccountModalBks extends LitElement {
   constructor() {
     super();
     this.open = false;
+    this.account = null;
     this._resetState();
+  }
+
+  willUpdate(changedProperties) {
+    if (changedProperties.has('open') && this.open && this._isEditing) {
+      this._form = AccountModalBks._formFrom(this.account);
+    }
   }
 
   updated(changedProperties) {
@@ -90,6 +99,16 @@ export class AccountModalBks extends LitElement {
     this._attempt = null;
   }
 
+  static _formFrom(account) {
+    return Object.fromEntries(
+      Object.keys(EMPTY_FORM).map(key => [key, account[key] ?? '']),
+    );
+  }
+
+  get _isEditing() {
+    return !!this.account;
+  }
+
   get _isStudent() {
     return this._form.role === 'user';
   }
@@ -110,21 +129,9 @@ export class AccountModalBks extends LitElement {
 
   get _formTpl() {
     return html`
-      <h2>New account</h2>
+      <h2>${this._isEditing ? 'Edit account' : 'New account'}</h2>
       <form novalidate @submit=${AccountModalBks._preventSubmit}>
-        <label for="account-role">Role</label>
-        <select
-          id="account-role"
-          name="role"
-          .value=${this._form.role}
-          @change=${this._handleInput}
-        >
-          ${ROLES.map(
-            ({ value, label }) =>
-              html`<option value=${value}>${label}</option>`,
-          )}
-        </select>
-
+        ${this._isEditing ? nothing : this._roleTpl}
         ${this._textField(
           'firstName',
           'First name',
@@ -147,9 +154,9 @@ export class AccountModalBks extends LitElement {
 
         <div class="button-container">
           <button-bks
-            label="Create"
+            label=${this._isEditing ? 'Save' : 'Create'}
             ?disabled=${this._submitting}
-            @button-click=${this._handleCreate}
+            @button-click=${this._handleSubmit}
           ></button-bks>
           <button-bks
             variant="secondary"
@@ -158,6 +165,22 @@ export class AccountModalBks extends LitElement {
           ></button-bks>
         </div>
       </form>
+    `;
+  }
+
+  get _roleTpl() {
+    return html`
+      <label for="account-role">Role</label>
+      <select
+        id="account-role"
+        name="role"
+        .value=${this._form.role}
+        @change=${this._handleInput}
+      >
+        ${ROLES.map(
+          ({ value, label }) => html`<option value=${value}>${label}</option>`,
+        )}
+      </select>
     `;
   }
 
@@ -364,11 +387,11 @@ export class AccountModalBks extends LitElement {
       Object.entries(this._form).map(([key, value]) => [key, value.trim()]),
     );
     const payload = {
-      role: form.role,
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
     };
+    if (!this._isEditing) payload.role = form.role;
     if (form.role === 'user') {
       payload.keyStage = form.keyStage;
       ['house', 'parentEmail', 'sex'].forEach(key => {
@@ -378,7 +401,7 @@ export class AccountModalBks extends LitElement {
     return payload;
   }
 
-  async _handleCreate() {
+  async _handleSubmit() {
     this._formError = '';
     this._errors = this._validate();
     if (Object.keys(this._errors).length) return;
@@ -387,6 +410,14 @@ export class AccountModalBks extends LitElement {
     const attempt = {};
     this._attempt = attempt;
     try {
+      if (this._isEditing) {
+        await updateUser(this.account.id, this._payload());
+        this.dispatchEvent(
+          new CustomEvent('account-updated', { bubbles: true, composed: true }),
+        );
+        if (this._attempt === attempt) this._handleClose();
+        return;
+      }
       const account = await createUser(this._payload());
       this.dispatchEvent(
         new CustomEvent('account-created', { bubbles: true, composed: true }),
@@ -404,7 +435,7 @@ export class AccountModalBks extends LitElement {
       if (error.status === 409) {
         this._errors = { email: EMAIL_TAKEN };
       } else {
-        this._formError = GENERIC_ERROR;
+        this._formError = this._isEditing ? SAVE_ERROR : CREATE_ERROR;
       }
     } finally {
       this._submitting = false;

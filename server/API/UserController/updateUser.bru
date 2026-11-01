@@ -1,0 +1,41 @@
+meta {
+  name: updateUser
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{vipa}}/api/v1/users/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "firstName": "Léa",
+    "lastName": "Moreau",
+    "email": "lea.moreau@example.com",
+    "keyStage": "ks_3",
+    "house": "Goya",
+    "parentEmail": "parent.moreau@example.com",
+    "sex": "female"
+  }
+}
+
+docs {
+  admin only. Replaces firstName, lastName, email and, for a student, keyStage (required), house, parentEmail and sex:
+  an optional field left out is cleared. A role sent is ignored, and the student fields sent for a librarian or an admin are
+  ignored and left as they are.
+  200 returns the account. 404 when the id is unknown. 409 when another account uses the email, whatever the case.
+  Changing the email, even only its case, closes every session of the account, the caller's own included.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

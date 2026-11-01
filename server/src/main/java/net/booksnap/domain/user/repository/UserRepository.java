@@ -52,6 +52,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // citext + stringtype=unspecified: ignores case
     boolean existsByEmail(String email);
 
+    // citext + stringtype=unspecified: ignores case
+    boolean existsByEmailAndIdNot(String email, Long id);
+
     @Query("""
             SELECT MIN(u.house) FROM User u
             WHERE TRIM(u.house) <> ''

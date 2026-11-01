@@ -11,8 +11,10 @@ import net.booksnap.domain.user.User;
 import net.booksnap.domain.user.UserStatusFilter;
 import net.booksnap.domain.user.api.dto.CreateUserRequest;
 import net.booksnap.domain.user.api.dto.CreatedUserResponse;
+import net.booksnap.domain.user.api.dto.UpdateUserRequest;
 import net.booksnap.domain.user.api.dto.UserResponse;
 import net.booksnap.domain.user.repository.UserRepository;
+import net.booksnap.exception.common.BadRequestException;
 import net.booksnap.exception.user.EmailTakenException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.hibernate.exception.ConstraintViolationException;
@@ -85,6 +87,33 @@ public class UserServiceImpl implements UserService {
 
         log.info("Account {} created with role {}", saved.getId(), saved.getRole());
         return new CreatedUserResponse(UserResponse.from(saved), temporaryPassword);
+    }
+
+    @Override
+    @Transactional
+    public AccountUpdate updateUser(Long id, UpdateUserRequest request) {
+        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+        if (user.getRole() == Role.user && request.keyStage() == null) {
+            throw new BadRequestException("Key stage is required for a student.");
+        }
+        if (userRepository.existsByEmailAndIdNot(request.email(), id)) {
+            throw new EmailTakenException();
+        }
+
+        boolean emailChanged = !user.getEmail().equals(request.email());
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setEmail(request.email());
+        if (user.getRole() == Role.user) {
+            user.setKeyStage(request.keyStage());
+            user.setHouse(request.house());
+            user.setParentEmail(request.parentEmail());
+            user.setSex(request.sex() == null ? null : request.sex().name());
+        }
+        User saved = saveCatchingEmailTaken(user);
+
+        log.info("Account {} updated", id);
+        return new AccountUpdate(UserResponse.from(saved), emailChanged);
     }
 
     @Override

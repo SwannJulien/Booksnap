@@ -5,6 +5,7 @@ import net.booksnap.domain.user.Role;
 import net.booksnap.domain.user.UserStatusFilter;
 import net.booksnap.domain.user.api.dto.CreateUserRequest;
 import net.booksnap.domain.user.api.dto.CreatedUserResponse;
+import net.booksnap.domain.user.api.dto.UpdateUserRequest;
 import net.booksnap.domain.user.api.dto.UserResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -17,6 +18,8 @@ public interface UserService {
     UserResponse getUser(Long id);
 
     CreatedUserResponse createUser(CreateUserRequest request);
+
+    AccountUpdate updateUser(Long id, UpdateUserRequest request);
 
     List<String> getHouses();
 }

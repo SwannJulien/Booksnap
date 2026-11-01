@@ -173,6 +173,7 @@ test('US-02: the administrator creates a student', async ({ page }) => {
     LEA_EMAIL,
     'Student',
     'Active',
+    '',
   ]);
 });
 

@@ -92,6 +92,20 @@ class SessionInvalidatorTest {
         assertThat(expired(CURRENT_SESSION)).isFalse();
     }
 
+    @Test
+    @DisplayName("US-03: closing all the sessions of an account expires every one of them and only its own")
+    void expiresEveryOneOfTheAccountsSessionsAndOnlyThose() {
+        sessionRegistry.registerNewSession("session-a", principal(USER_ID));
+        sessionRegistry.registerNewSession("session-b", principal(USER_ID));
+        sessionRegistry.registerNewSession("session-somebody-else", principal(99L));
+
+        sessionInvalidator.invalidateAllOf(USER_ID);
+
+        assertThat(expired("session-a")).isTrue();
+        assertThat(expired("session-b")).isTrue();
+        assertThat(expired("session-somebody-else")).isFalse();
+    }
+
     /**
      * States the dependency this class rests on, so a failure points at the cause rather
      * than at four tests going red at once.

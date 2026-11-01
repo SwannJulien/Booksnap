@@ -60,4 +60,25 @@ public class SessionInvalidator {
             log.info("Expired {} other session(s) after a credential change", expired);
         }
     }
+
+    /**
+     * Ends every session of an account, the caller's own included. Looked up by the account id
+     * because {@code AuthenticatedUser.equals} compares nothing else, and the caller often holds
+     * no principal for the account.
+     */
+    public void invalidateAllOf(Long userId) {
+        int expired = 0;
+        for (Object principal : sessionRegistry.getAllPrincipals()) {
+            if (principal instanceof AuthenticatedUser user && userId.equals(user.getId())) {
+                for (SessionInformation session : sessionRegistry.getAllSessions(principal, false)) {
+                    session.expireNow();
+                    expired++;
+                }
+            }
+        }
+
+        if (expired > 0) {
+            log.info("Expired {} session(s) of account {}", expired, userId);
+        }
+    }
 }

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import net.booksnap.domain.Auditable;
 import net.booksnap.domain.book.KeyStage;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
@@ -13,6 +14,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
+// recordLastLogin and an administrator's edit write the same row: each must write only what it changed.
+@DynamicUpdate
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -51,12 +51,10 @@ export const usersView = css`
     width: 100%;
     border-radius: var(--border-radius-default);
     border-collapse: separate;
-    overflow: hidden;
     border-spacing: 0;
   }
 
   thead {
-    background-color: #2d3748;
     text-transform: uppercase;
     text-align: left;
     color: var(--clr-text-muted);
@@ -65,8 +63,29 @@ export const usersView = css`
     letter-spacing: 1px;
   }
 
-  tbody {
+  thead th {
+    background-color: #2d3748;
+  }
+
+  tbody td {
     background-color: var(--clr-card-gray);
+  }
+
+  /* No overflow: hidden on the table, it would clip the action menu of the last row. */
+  thead th:first-child {
+    border-top-left-radius: var(--border-radius-default);
+  }
+
+  thead th:last-child {
+    border-top-right-radius: var(--border-radius-default);
+  }
+
+  tbody tr:last-child td:first-child {
+    border-bottom-left-radius: var(--border-radius-default);
+  }
+
+  tbody tr:last-child td:last-child {
+    border-bottom-right-radius: var(--border-radius-default);
   }
 
   tbody tr td {
@@ -80,19 +99,52 @@ export const usersView = css`
   }
 
   th:nth-child(1) {
-    width: 26%;
+    width: 24%;
   }
 
   th:nth-child(2) {
-    width: 38%;
+    width: 34%;
   }
 
   th:nth-child(3) {
-    width: 18%;
+    width: 16%;
   }
 
   th:nth-child(4) {
-    width: 18%;
+    width: 14%;
+  }
+
+  th:nth-child(5) {
+    width: 12%;
+  }
+
+  .action-menu-wrapper {
+    position: relative;
+  }
+
+  .action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    transition: all 0.3s ease;
+  }
+
+  .action-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--clr-text-muted);
+  }
+
+  .action-btn:hover svg {
+    fill: var(--clr-text-light);
+  }
+
+  .action-btn.active svg {
+    fill: var(--clr-accent);
   }
 
   .status-pill {

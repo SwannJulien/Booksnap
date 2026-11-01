@@ -31,6 +31,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,6 +54,11 @@ class UserTest {
     private static final String TAKEN_EMAIL_MESSAGE = "An account already uses this email.";
     private static final String INCOMPLETE_FIRST_NAME = "Us02Incomplete";
     private static final String ABSENT_ID = "999999999";
+    private static final String EDITED_EMAIL = "us03.edited@booksnap.test";
+    private static final String OTHER_EMAIL = "us03.other@booksnap.test";
+    private static final String STAFF_EMAIL = "us03.staff@booksnap.test";
+    private static final String STUDENT_RECORD =
+            "Clara|Dupont|%s|ks_1|Picasso|us03.parent.original@booksnap.test|female";
 
     @Autowired
     private MockMvc mockMvc;
@@ -364,6 +370,167 @@ class UserTest {
         String temporaryPassword = JsonPath.read(created, "$.temporaryPassword");
 
         assertThat(output.getAll()).doesNotContain(temporaryPassword);
+    }
+
+    @Test
+    @DisplayName("US-03: an unknown account")
+    void editingAnAbsentAccount() throws Exception {
+        update(admin(), ABSENT_ID, studentBody(EDITED_EMAIL))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").isString())
+                .andExpect(jsonPath("$.path").value(USERS + "/" + ABSENT_ID));
+    }
+
+    @ParameterizedTest(name = "{displayName} [{0}]")
+    @ValueSource(strings = {"LIBRARIAN", "USER"})
+    @DisplayName("US-03: only the administrator edits an account")
+    void onlyTheAdministratorEditsAnAccount(String role) throws Exception {
+        String id = insertStudent(EDITED_EMAIL);
+
+        update(user("test@booksnap.net").roles(role), id, studentBody(EDITED_EMAIL))
+                .andExpect(status().isForbidden());
+
+        assertThat(accountRecord(id)).isEqualTo(STUDENT_RECORD.formatted(EDITED_EMAIL));
+    }
+
+    @Test
+    @DisplayName("US-03: the updated account is returned and a role sent is ignored")
+    void theUpdatedAccountIsReturnedAndTheRoleIsIgnored() throws Exception {
+        String id = insertStudent(EDITED_EMAIL);
+
+        update(admin(), id, """
+                {"role": "admin", "firstName": "Clara", "lastName": "Dupond", "email": "%s", "keyStage": "ks_2",
+                 "house": "Goya", "parentEmail": "us03.parent@booksnap.test", "sex": "female"}
+                """.formatted(EDITED_EMAIL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(Long.parseLong(id)))
+                .andExpect(jsonPath("$.firstName").value("Clara"))
+                .andExpect(jsonPath("$.lastName").value("Dupond"))
+                .andExpect(jsonPath("$.email").value(EDITED_EMAIL))
+                .andExpect(jsonPath("$.role").value("user"))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.keyStage").value("ks_2"))
+                .andExpect(jsonPath("$.house").value("Goya"))
+                .andExpect(jsonPath("$.parentEmail").value("us03.parent@booksnap.test"))
+                .andExpect(jsonPath("$.sex").value("female"));
+
+        mockMvc.perform(get(USERS + "/" + id).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastName").value("Dupond"))
+                .andExpect(jsonPath("$.keyStage").value("ks_2"))
+                .andExpect(jsonPath("$.role").value("user"));
+    }
+
+    @ParameterizedTest(name = "{displayName} [{0}]")
+    @MethodSource("invalidUpdates")
+    @DisplayName("US-03: the API refuses an invalid update")
+    void refusesAnInvalidUpdate(String caseName, String body) throws Exception {
+        String id = insertStudent(EDITED_EMAIL);
+
+        update(admin(), id, body)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").isString())
+                .andExpect(jsonPath("$.path").value(USERS + "/" + id));
+
+        assertThat(accountRecord(id)).isEqualTo(STUDENT_RECORD.formatted(EDITED_EMAIL));
+    }
+
+    @Test
+    @DisplayName("US-03: an email used by another account is refused whatever the case, but not one's own")
+    void emailUniquenessExcludesTheAccountItself() throws Exception {
+        String id = insertStudent(EDITED_EMAIL);
+        insertStudent(OTHER_EMAIL);
+
+        update(admin(), id, studentBody(OTHER_EMAIL.toUpperCase()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value(TAKEN_EMAIL_MESSAGE));
+
+        assertThat(accountRecord(id)).isEqualTo(STUDENT_RECORD.formatted(EDITED_EMAIL));
+
+        update(admin(), id, studentBody(EDITED_EMAIL.toUpperCase()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("US-03: the student fields sent for a staff member are ignored")
+    void studentFieldsAreIgnoredForStaff() throws Exception {
+        jdbcTemplate.update(
+                "INSERT INTO users (first_name, last_name, email, role, key_stage, house) "
+                        + "VALUES ('Paul', 'Girard', ?, 'librarian', 'ks_3', 'Us03House')", STAFF_EMAIL);
+        String id = idOf(STAFF_EMAIL);
+
+        update(admin(), id, """
+                {"firstName": "Paul", "lastName": "Girard", "email": "%s", "house": "Other"}
+                """.formatted(STAFF_EMAIL))
+                .andExpect(status().isOk());
+
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT key_stage::text AS key_stage, house FROM users WHERE id = ?", Long.valueOf(id)))
+                .containsEntry("key_stage", "ks_3")
+                .containsEntry("house", "Us03House");
+    }
+
+    @Test
+    @DisplayName("US-03: the key stage is required for a student only")
+    void keyStageIsRequiredForAStudentOnly() throws Exception {
+        String id = insertStudent(EDITED_EMAIL);
+
+        update(admin(), id, """
+                {"firstName": "Clara", "lastName": "Dupont", "email": "%s"}
+                """.formatted(EDITED_EMAIL))
+                .andExpect(status().isBadRequest());
+
+        assertThat(accountRecord(id)).isEqualTo(STUDENT_RECORD.formatted(EDITED_EMAIL));
+    }
+
+    private static Stream<Arguments> invalidUpdates() {
+        return Stream.of(
+                Arguments.of("without an email",
+                        "{\"firstName\": \"Clara\", \"lastName\": \"Dupond\", \"keyStage\": \"ks_2\"}"),
+                Arguments.of("an invalid email", studentBody("clara@")),
+                Arguments.of("an invalid parent email", """
+                        {"firstName": "Clara", "lastName": "Dupond", "email": "%s", "keyStage": "ks_2",
+                         "parentEmail": "parent@"}
+                        """.formatted(EDITED_EMAIL)),
+                Arguments.of("a blank first name", """
+                        {"firstName": "   ", "lastName": "Dupond", "email": "%s", "keyStage": "ks_2"}
+                        """.formatted(EDITED_EMAIL)));
+    }
+
+    private ResultActions update(RequestPostProcessor principal, String id, String json) throws Exception {
+        return mockMvc.perform(put(USERS + "/" + id)
+                .with(principal)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
+    }
+
+    private static String studentBody(String email) {
+        return """
+                {"firstName": "Clara", "lastName": "Dupond", "email": "%s", "keyStage": "ks_2"}
+                """.formatted(email);
+    }
+
+    private String insertStudent(String email) {
+        jdbcTemplate.update(
+                "INSERT INTO users (first_name, last_name, email, key_stage, house, parent_email, genre) "
+                        + "VALUES ('Clara', 'Dupont', ?, 'ks_1', 'Picasso', 'us03.parent.original@booksnap.test', 'female')",
+                email);
+        return idOf(email);
+    }
+
+    private String idOf(String email) {
+        return jdbcTemplate.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email).toString();
+    }
+
+    private String accountRecord(String id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT first_name || '|' || last_name || '|' || email || '|' || key_stage || '|' || house "
+                        + "|| '|' || parent_email || '|' || genre FROM users WHERE id = ?",
+                String.class, Long.valueOf(id));
     }
 
     private static Stream<Arguments> incompleteAccounts() {

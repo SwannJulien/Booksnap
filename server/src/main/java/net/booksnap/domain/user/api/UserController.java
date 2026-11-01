@@ -1,14 +1,17 @@
 package net.booksnap.domain.user.api;
 
 import jakarta.validation.Valid;
+import net.booksnap.domain.auth.service.SessionInvalidator;
 import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.user.Role;
 import net.booksnap.domain.user.UserStatusFilter;
 import net.booksnap.domain.user.api.dto.CreateUserRequest;
 import net.booksnap.domain.user.api.dto.CreatedUserResponse;
+import net.booksnap.domain.user.api.dto.UpdateUserRequest;
 import net.booksnap.domain.user.api.dto.UserResponse;
 import net.booksnap.domain.user.api.dto.UserSearchResponse;
 import net.booksnap.domain.user.repository.UserRepository;
+import net.booksnap.domain.user.service.AccountUpdate;
 import net.booksnap.domain.user.service.UserService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -16,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,10 +34,13 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final SessionInvalidator sessionInvalidator;
 
-    public UserController(UserRepository userRepository, UserService userService) {
+    public UserController(UserRepository userRepository, UserService userService,
+                          SessionInvalidator sessionInvalidator) {
         this.userRepository = userRepository;
         this.userService = userService;
+        this.sessionInvalidator = sessionInvalidator;
     }
 
     @GetMapping
@@ -49,6 +56,17 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedUserResponse createUser(@RequestBody @Valid CreateUserRequest request) {
         return userService.createUser(request);
+    }
+
+    @PutMapping("/{id}")
+    public UserResponse updateUser(@PathVariable Long id, @RequestBody @Valid UpdateUserRequest request) {
+        AccountUpdate update = userService.updateUser(id, request);
+        // Closed once the service has committed, so a rollback signs nobody out. The caller's own
+        // session is not spared: an administrator who changes their own email signs in again.
+        if (update.emailChanged()) {
+            sessionInvalidator.invalidateAllOf(id);
+        }
+        return update.account();
     }
 
     @GetMapping("/houses")

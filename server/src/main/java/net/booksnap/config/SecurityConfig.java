@@ -203,6 +203,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole(ADMIN)
                 .requestMatchers(HttpMethod.POST, "/api/v1/users").hasRole(ADMIN)
+                .requestMatchers(HttpMethod.PUT, "/api/v1/users/*").hasRole(ADMIN)
 
                 // --- Archive -------------------------------------------------------------
                 .requestMatchers(HttpMethod.GET, "/api/v1/archive/books", "/api/v1/archive/copies").hasAnyRole(LIBRARIAN, ADMIN)

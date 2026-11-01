@@ -84,6 +84,7 @@ test('US-01: the administrator opens the accounts view', async ({ page }) => {
     'Email',
     'Role',
     'Status',
+    'Actions',
   ]);
 
   await searchBox(page).fill(ACCOUNTS.admin.email);
@@ -92,6 +93,7 @@ test('US-01: the administrator opens the accounts view', async ({ page }) => {
     'alice.martin@example.com',
     'Admin',
     'Active',
+    '',
   ]);
 
   await searchBox(page).fill(ACCOUNTS.librarian.email);

@@ -110,3 +110,27 @@
   `LibraryNameRequest` (`@Size(max = 255)`, trim dans le constructeur compact).
   Found: review US-02, 2026-10-28 (300 caractères dans `firstName` : `500` « Internal server error »).
   Affects: US-03 (modifier un compte) écrit les mêmes colonnes ; la requête de modification doit porter la même limite.
+
+- **`@Email` (Hibernate Validator 8) refuse aussi une partie locale de plus de 64 caractères et un domaine très long, que le domaine `email` de la base et `EMAIL_PATTERN` de la modale acceptent.**
+  `web/src/features/user/account-modal-bks/account-modal-bks.js` (`EMAIL_PATTERN`) ; `EmailValidator` de
+  `hibernate-validator-8.0.2.Final` (`a`×65 + `@x.com` → refusé, `a`×64 → accepté ; un domaine de 259 caractères en labels de 63 → refusé).
+  Found: review US-02, 2026-10-28 (round 2). Affects: US-03 — si la modale de modification reprend `EMAIL_PATTERN`, une telle adresse passe
+  le contrôle du client et le serveur répond `400` « Enter a valid email address. » que la modale affiche comme « The account could not be created. ».
+
+- **Le tableau de « Users » ne doit pas porter `overflow: hidden` : il rogne le menu de la dernière ligne.**
+  `web/src/views/users-view/users-view-styles.js` (`table`) ; `dropdown-bks` est en `position: absolute; top: 100%`.
+  Les coins arrondis se font sur les cellules (`thead th`, `tbody tr:last-child td`).
+  Found: build US-03, 2026-10-28 (capture : seul le haut de « Edit » restait visible sur la dernière ligne ; un test e2e qui
+  cherche un compte voit une seule ligne et ne le détecte pas). Affects: US-04, US-05, US-06 ajoutent des entrées à ce menu ;
+  le remettre en `overflow: hidden` les rend de nouveau inaccessibles sur la dernière ligne.
+
+- **`@MockitoSpyBean UserRepository` ne peut pas appeler la vraie `findById` : `callRealMethod()` lève « Cannot call abstract real method ».**
+  `server/src/test/java/net/booksnap/domain/user/api/UserUpdateRaceTest.java` (le stub de `findById` charge l'entité par
+  `entityManager.find(User.class, id)`, écrit en `JdbcTemplate`, puis renvoie l'entité périmée).
+  Found: build US-03, 2026-10-28. Affects: tout test de concurrence de US-04 (rôle, key stage) ou US-05 (`is_active`) qui veut une
+  entité périmée ; sans `@DynamicUpdate` sur `User`, ce test échoue (`last_login` revient à `null`), c'est ce qui le rend utile.
+
+- **Les journaux de `npm run test:e2e` portent « Element account-modal-bks scheduled an update … after an update completed » à chaque chargement de « Users » ; ce n'est pas un défaut de US-03.**
+  `web/src/features/user/account-modal-bks/account-modal-bks.js` (`updated` appelle `_resetState()` au premier rendu, où `open` passe de
+  `undefined` à `false`) ; le même code est dans `HEAD`. Lu dans le code, non bissecté.
+  Found: review US-03, 2026-10-28. Affects: inutile de chercher cet avertissement Lit en déboguant une vue qui monte la modale (US-04, US-05, US-06).

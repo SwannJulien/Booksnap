@@ -252,32 +252,32 @@ Examples:
 
 ## Critères d'acceptation
 
-- [ ] `PUT /api/v1/users/{id}`
+- [x] `PUT /api/v1/users/{id}`
       `{ firstName, lastName, email, keyStage?, house?, parentEmail?, sex? }`
       → `200` avec le compte ; un champ `role` envoyé est ignoré ; `400`, `409`
       comme à la création (US-02) ; `404` (`ApiError`) pour un compte inconnu ;
       `ADMIN` seulement.
-- [ ] Les champs d'élève envoyés pour un membre du personnel sont ignorés ; le
+- [x] Les champs d'élève envoyés pour un membre du personnel sont ignorés ; le
       key stage n'est obligatoire que pour un compte de rôle `user`.
-- [ ] Les sessions sont fermées après la validation de la transaction, comme
+- [x] Les sessions sont fermées après la validation de la transaction, comme
       dans `AuthController.changePassword`, et seulement si l'email a changé.
-- [ ] La règle est déclarée dans `SecurityConfig` et ajoutée à
+- [x] La règle est déclarée dans `SecurityConfig` et ajoutée à
       `ApiAuthorizationMatrixTest` comme `ADMIN_ONLY`.
-- [ ] La modale de US-02 est réutilisée en mode modification, ouverte par
+- [x] La modale de US-02 est réutilisée en mode modification, ouverte par
       l'action « Edit » du menu de ligne (`dropdown-selected-option`).
-- [ ] Textes de l'interface : action « Edit », titre « Edit account », bouton
+- [x] Textes de l'interface : action « Edit », titre « Edit account », bouton
       « Save » et « Cancel » ; mêmes libellés de champs et mêmes erreurs que
       US-02 ; pour tout autre échec « The account could not be saved. »
-- [ ] Un `.bru` pour la modification dans `server/API/UserController/`.
-- [ ] Critères permanents :
-  - [ ] Chaque scénario a un test automatisé nommé `US-03: <titre du scénario>`
-  - [ ] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
+- [x] Un `.bru` pour la modification dans `server/API/UserController/`.
+- [x] Critères permanents :
+  - [x] Chaque scénario a un test automatisé nommé `US-03: <titre du scénario>`
+  - [x] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
         `npm run test:e2e` dans `web/`
-  - [ ] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
-  - [ ] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
-  - [ ] Aucune migration appliquée n'est modifiée
-  - [ ] Le backend démarre avec `ddl-auto=validate`
-  - [ ] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
+  - [x] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
+  - [x] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
+  - [x] Aucune migration appliquée n'est modifiée
+  - [x] Le backend démarre avec `ddl-auto=validate`
+  - [x] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
 
 ---
 

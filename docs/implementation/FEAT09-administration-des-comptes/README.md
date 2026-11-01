@@ -118,9 +118,11 @@ indépendantes entre elles.
   second administrateur le prépare dans `psql`
   (`UPDATE users SET role = 'admin' WHERE email = '…'`, plus une identité
   `local`, comme le fait le harnais).
-- **Parcours manuel** : sur la base `booksnap_e2e` après un `npm run test:e2e`,
-  avec un backend et un `npm run dev` pointés dessus, ou sur la base de
-  développement avec ses comptes admin et bibliothécaire. La base jetable est
+- **Parcours manuel** : sur la base `booksnap_e2e`, avec un backend et un
+  frontend pointés dessus — mise en place dans
+  [le guide technique](../../GUIDE-TECHNIQUE.md#environnement-des-vérifications-de-bout-en-bout),
+  ou sur la base de développement avec ses comptes admin et bibliothécaire. La
+  base jetable est
   préférable : les prêts et les réservations laissent des lignes définitives
   dans `lifecycle_event`.
 - **Nettoyage** : sur `booksnap_e2e`, rien (la base est reconstruite à chaque

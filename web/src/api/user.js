@@ -61,6 +61,27 @@ export async function createUser(account) {
   return response.json();
 }
 
+// Resolves to the updated account. A 409 means the email is taken. Changing the email closes
+// the account's sessions, the caller's own included.
+export async function updateUser(id, account) {
+  const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.USERS}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(account),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to update account: ${response.status}`,
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
 // Returns the houses already in use, as a list of strings.
 export async function getHouses() {
   const response = await apiFetch(`${API_BASE_URL}${API_ROUTES.USERS}/houses`);
