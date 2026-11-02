@@ -1,8 +1,8 @@
 import { LitElement, html, nothing } from 'lit';
 import { settingsView } from './settings-view-styles.js';
 import { isAdmin, isStaff } from '../../auth-state.js';
-import '../../features/library/library-section-bks/library-section-bks.js';
-import '../../features/library/loan-rules-section-bks/loan-rules-section-bks.js';
+import '../../features/settings/library-section-bks/library-section-bks.js';
+import '../../features/settings/loan-rules-section-bks/loan-rules-section-bks.js';
 
 export class SettingsView extends LitElement {
   static styles = [settingsView];

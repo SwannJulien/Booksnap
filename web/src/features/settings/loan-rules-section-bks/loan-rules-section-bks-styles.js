@@ -2,11 +2,12 @@ import { css } from 'lit';
 import { sharedStyles } from '../../../shared-styles.js';
 
 // sharedStyles first: rules below must be able to override its `input` block.
-export const librarySectionBksStyles = [
+export const loanRulesSectionBksStyles = [
   sharedStyles,
   css`
     :host {
       display: block;
+      margin-top: 2rem;
     }
 
     .subtitle {
@@ -28,6 +29,7 @@ export const librarySectionBksStyles = [
     }
 
     li {
+      max-width: 34rem;
       justify-content: space-between;
     }
 
@@ -40,9 +42,17 @@ export const librarySectionBksStyles = [
       margin: 0;
     }
 
-    input {
+    .library-name {
       flex: 1;
-      min-width: 0;
+    }
+
+    .rules {
+      color: var(--clr-text-muted);
+    }
+
+    input[type='number'] {
+      width: 5rem;
+      flex: none;
     }
 
     label {
