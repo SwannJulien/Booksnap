@@ -9,6 +9,7 @@ import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.user.Role;
 import net.booksnap.domain.user.User;
 import net.booksnap.domain.user.UserStatusFilter;
+import net.booksnap.domain.user.api.dto.ChangeRoleRequest;
 import net.booksnap.domain.user.api.dto.CreateUserRequest;
 import net.booksnap.domain.user.api.dto.CreatedUserResponse;
 import net.booksnap.domain.user.api.dto.UpdateUserRequest;
@@ -19,6 +20,7 @@ import net.booksnap.exception.user.EmailTakenException;
 import net.booksnap.exception.user.UserNotFoundException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -52,20 +55,24 @@ public class UserServiceImpl implements UserService {
     public PagedResponse<UserResponse> getUsers(String q, Role role, UserStatusFilter status, Pageable pageable) {
         // The order is fixed in the query: a client-supplied sort would be appended to it
         Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        return PagedResponse.of(userRepository.findMatching(
-                        role == null ? EnumSet.allOf(Role.class) : EnumSet.of(role),
-                        status.includesActive(),
-                        status.includesDeactivated(),
-                        q == null ? "" : q.trim(),
-                        unsorted)
-                .map(UserResponse::from));
+        Page<User> page = userRepository.findMatching(
+                role == null ? EnumSet.allOf(Role.class) : EnumSet.of(role),
+                status.includesActive(),
+                status.includesDeactivated(),
+                q == null ? "" : q.trim(),
+                unsorted);
+        Set<Long> withPassword = page.isEmpty()
+                ? Set.of()
+                : authIdentityRepository.findUserIdsWithProvider(
+                        Provider.local, page.map(User::getId).getContent());
+        return PagedResponse.of(page.map(user -> UserResponse.from(user, withPassword.contains(user.getId()))));
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserResponse getUser(Long id) {
         return userRepository.findById(id)
-                .map(UserResponse::from)
+                .map(this::toResponse)
                 .orElseThrow(() -> new UserNotFoundException(id));
     }
 
@@ -86,7 +93,7 @@ public class UserServiceImpl implements UserService {
         }
 
         log.info("Account {} created with role {}", saved.getId(), saved.getRole());
-        return new CreatedUserResponse(UserResponse.from(saved), temporaryPassword);
+        return new CreatedUserResponse(UserResponse.from(saved, temporaryPassword != null), temporaryPassword);
     }
 
     @Override
@@ -113,13 +120,38 @@ public class UserServiceImpl implements UserService {
         User saved = saveCatchingEmailTaken(user);
 
         log.info("Account {} updated", id);
-        return new AccountUpdate(UserResponse.from(saved), emailChanged);
+        return new AccountUpdate(toResponse(saved), emailChanged);
+    }
+
+    @Override
+    @Transactional
+    public RoleChange changeRole(Long id, ChangeRoleRequest request) {
+        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+        if (user.getRole() == request.role()) {
+            return new RoleChange(toResponse(user), false);
+        }
+        if (request.role() == Role.user && user.getKeyStage() == null) {
+            if (request.keyStage() == null) {
+                throw new BadRequestException("Key stage is required for a student.");
+            }
+            user.setKeyStage(request.keyStage());
+        }
+
+        user.setRole(request.role());
+        User saved = userRepository.saveAndFlush(user);
+
+        log.info("Account {} role changed to {}", id, saved.getRole());
+        return new RoleChange(toResponse(saved), true);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<String> getHouses() {
         return userRepository.findDistinctHouses();
+    }
+
+    private UserResponse toResponse(User user) {
+        return UserResponse.from(user, authIdentityRepository.existsByUserIdAndProvider(user.getId(), Provider.local));
     }
 
     private static User newUser(CreateUserRequest request) {

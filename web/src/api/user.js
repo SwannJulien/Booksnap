@@ -14,7 +14,7 @@ export async function searchUsers(query) {
   return response.json();
 }
 
-// Returns a PagedResponse of { id, firstName, lastName, email, role, active, keyStage, house, parentEmail, sex }.
+// Returns a PagedResponse of { id, firstName, lastName, email, role, active, keyStage, house, parentEmail, sex, hasPassword }.
 // role narrows to 'user', 'librarian' or 'admin'; status is 'active', 'deactivated' or 'all'.
 export async function getUsers({
   page = 1,
@@ -74,6 +74,30 @@ export async function updateUser(id, account) {
     const errorData = await response.json().catch(() => ({}));
     const error = new Error(
       errorData.message || `Failed to update account: ${response.status}`,
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+// Resolves to the updated account. Changing the role closes the account's sessions.
+// keyStage is only read when a student is made of an account that has none.
+export async function changeUserRole(id, { role, keyStage }) {
+  const response = await apiFetch(
+    `${API_BASE_URL}${API_ROUTES.USERS}/${id}/role`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, keyStage }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const error = new Error(
+      errorData.message || `Failed to change role: ${response.status}`,
     );
     error.status = response.status;
     throw error;

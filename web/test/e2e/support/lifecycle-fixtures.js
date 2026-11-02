@@ -7,7 +7,7 @@ export function uniqueTitle(prefix) {
   return `${prefix} ${randomUUID().slice(0, 8)}`;
 }
 
-async function csrfToken(page) {
+export async function csrfToken(page) {
   await page.request.get('/api/v1/auth/csrf');
   const cookies = await page.context().cookies();
   return cookies.find(cookie => cookie.name === 'XSRF-TOKEN').value;

@@ -3,11 +3,13 @@ import { Task } from '@lit/task';
 import { usersView } from './users-view-styles.js';
 import { sharedStyles } from '../../shared-styles.js';
 import { getUsers } from '../../api/user.js';
+import { getAuthenticatedUser } from '../../auth-state.js';
 import '../../components/spinner-bks/spinner-bks.js';
 import '../../components/pagination-bks/pagination-bks.js';
 import '../../components/button-bks/button-bks.js';
 import '../../components/dropdown-bks/dropdown-bks.js';
 import '../../features/user/account-modal-bks/account-modal-bks.js';
+import '../../features/user/role-modal-bks/role-modal-bks.js';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -15,6 +17,8 @@ const MORE_ACTIONS_ICON_PATH =
   'M480-160q-33 0-56.5-23.5T400-240q0-33 23.5-56.5T480-320q33 0 56.5 23.5T560-240q0 33-23.5 56.5T480-160Zm0-240q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm0-240q-33 0-56.5-23.5T400-720q0-33 23.5-56.5T480-800q33 0 56.5 23.5T560-720q0 33-23.5 56.5T480-640Z';
 const EDIT_ICON_PATH =
   'M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z';
+const CHANGE_ROLE_ICON_PATH =
+  'M400-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM80-160v-112q0-33 17-62t47-44q51-26 115-44t141-18h14q6 0 12 2-8 18-13.500 37.500T404-360h-4q-71 0-127.500 18T180-306q-9 5-14.500 14t-5.500 20v32h250q5 21 14.500 41.500T439-160H80Zm600 40-12-60q-12-5-22.500-10.500T624-204l-58 18-40-68 46-40q-2-12-2-26t2-26l-46-40 40-68 58 18q11-8 21.500-13.500T668-460l12-60h80l12 60q12 5 22.500 11t21.500 15l58-20 40 70-46 40q2 12 2 25t-2 25l46 40-40 68-58-18q-11 8-21.500 13.500T772-180l-12 60h-80Zm40-120q33 0 56.500-23.500T800-320q0-33-23.500-56.500T720-400q-33 0-56.500 23.500T640-320q0 33 23.500 56.500T720-240Zm-320-320q33 0 56.500-23.500T480-640q0-33-23.500-56.500T400-720q-33 0-56.500 23.500T320-640q0 33 23.500 56.500T400-560Zm0-80Zm10 400Z';
 
 const ROLE_LABELS = {
   user: 'Student',
@@ -39,6 +43,7 @@ export class UsersView extends LitElement {
     _status: { type: String, state: true },
     _creating: { type: Boolean, state: true },
     _editing: { type: Object, state: true },
+    _changingRole: { type: Object, state: true },
     _openActionMenuId: { state: true },
   };
 
@@ -51,6 +56,7 @@ export class UsersView extends LitElement {
     this._status = 'active';
     this._creating = false;
     this._editing = null;
+    this._changingRole = null;
     this._openActionMenuId = null;
     this._debounceTimer = null;
     this._handleOutsideClick = this._handleOutsideClick.bind(this);
@@ -136,6 +142,14 @@ export class UsersView extends LitElement {
         @account-created=${() => this.listTask.run()}
         @account-updated=${() => this.listTask.run()}
       ></account-modal-bks>
+      <role-modal-bks
+        .account=${this._changingRole}
+        ?open=${!!this._changingRole}
+        @modal-close=${() => {
+          this._changingRole = null;
+        }}
+        @role-changed=${() => this.listTask.run()}
+      ></role-modal-bks>
     `;
   }
 
@@ -170,6 +184,17 @@ export class UsersView extends LitElement {
   _rowTpl(user) {
     const isMenuOpen = this._openActionMenuId === user.id;
     const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    const actions = [
+      { action: 'edit', data: user, path: EDIT_ICON_PATH, label: 'Edit' },
+    ];
+    if (user.id !== getAuthenticatedUser()?.id) {
+      actions.push({
+        action: 'change-role',
+        data: user,
+        path: CHANGE_ROLE_ICON_PATH,
+        label: 'Change role',
+      });
+    }
 
     return html`
       <tr>
@@ -195,14 +220,7 @@ export class UsersView extends LitElement {
             ${isMenuOpen
               ? html`
                   <dropdown-bks
-                    .options=${[
-                      {
-                        action: 'edit',
-                        data: user,
-                        path: EDIT_ICON_PATH,
-                        label: 'Edit',
-                      },
-                    ]}
+                    .options=${actions}
                     @dropdown-selected-option=${this._handleDropdownAction}
                   ></dropdown-bks>
                 `
@@ -238,6 +256,9 @@ export class UsersView extends LitElement {
     switch (action) {
       case 'edit':
         this._editing = data;
+        break;
+      case 'change-role':
+        this._changingRole = data;
         break;
       default:
         break;

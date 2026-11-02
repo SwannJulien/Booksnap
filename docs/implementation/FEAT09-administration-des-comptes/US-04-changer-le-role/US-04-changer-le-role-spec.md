@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Feature** | Administration des comptes |
-| **Statut** | draft |
+| **Statut** | approved |
 | **Nature** | feature |
 | **Dépend de** | US-01 (vue « Users ») |
 | **Bloque** | — |
@@ -267,21 +267,21 @@ Examples:
 
 ## Critères d'acceptation
 
-- [ ] `PUT /api/v1/users/{id}/role` `{ role, keyStage? }` → `200` avec le
+- [x] `PUT /api/v1/users/{id}/role` `{ role, keyStage? }` → `200` avec le
       compte ; `400` (`ApiError`) pour un rôle absent ou inconnu, ou pour un
       passage à `user` d'un compte sans key stage quand `keyStage` manque ou
       est inconnu ; `keyStage` est ignoré dans les autres cas ; `403` (`ApiError`,
       `"You cannot change your own role."`) sur son propre compte ; `404`
       (`ApiError`) pour un compte inconnu ; `ADMIN` seulement. Le même rôle
       que l'actuel répond `200` sans fermer de session.
-- [ ] La lecture d'un compte (liste de US-01) indique si le compte a un mot de
+- [x] La lecture d'un compte (liste de US-01) indique si le compte a un mot de
       passe, sans jamais en exposer le hash, pour que la modale puisse
       prévenir.
-- [ ] Les sessions du compte sont fermées après la validation de la
+- [x] Les sessions du compte sont fermées après la validation de la
       transaction.
-- [ ] La règle est déclarée dans `SecurityConfig` et ajoutée à
+- [x] La règle est déclarée dans `SecurityConfig` et ajoutée à
       `ApiAuthorizationMatrixTest` comme `ADMIN_ONLY`.
-- [ ] Textes de l'interface : action « Change role », titre de modale « Change
+- [x] Textes de l'interface : action « Change role », titre de modale « Change
       role », champ « Role » (« Student », « Librarian », « Admin »), champ
       « Key stage » (« Pre-school », « KS-1 » … « KS-5 »), phrases
       « {Name} will be signed out and will sign in again as {Role}. » et
@@ -289,16 +289,16 @@ Examples:
       boutons « Change role » et « Cancel » ; en cas d'échec « The role could
       not be changed. » {Name} est « {First name} {Last name} », ou l'email si
       le compte n'a ni prénom ni nom.
-- [ ] Un `.bru` pour le changement de rôle dans `server/API/UserController/`.
-- [ ] Critères permanents :
-  - [ ] Chaque scénario a un test automatisé nommé `US-04: <titre du scénario>`
-  - [ ] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
+- [x] Un `.bru` pour le changement de rôle dans `server/API/UserController/`.
+- [x] Critères permanents :
+  - [x] Chaque scénario a un test automatisé nommé `US-04: <titre du scénario>`
+  - [x] Toute la suite passe (`./mvnw -q test` depuis `server/`), et
         `npm run test:e2e` dans `web/`
-  - [ ] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
-  - [ ] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
-  - [ ] Aucune migration appliquée n'est modifiée
-  - [ ] Le backend démarre avec `ddl-auto=validate`
-  - [ ] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
+  - [x] `npm run lint` dans `web/` ne signale aucune nouvelle erreur
+  - [x] Un nouvel endpoint a son `.bru` dans `server/API/<Controller>/`
+  - [x] Aucune migration appliquée n'est modifiée
+  - [x] Le backend démarre avec `ddl-auto=validate`
+  - [x] Commentaires de code en anglais, réduits à ce que le code ne peut pas dire
 
 ---
 

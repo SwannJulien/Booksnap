@@ -96,6 +96,6 @@ class UserControllerUpdateTest {
 
     private static UserResponse account() {
         return new UserResponse(ID, "Clara", "Dupond", "clara.dupond@example.com", Role.user, true,
-                KeyStage.ks_2, null, null, null);
+                KeyStage.ks_2, null, null, null, false);
     }
 }

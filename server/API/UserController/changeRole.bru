@@ -1,0 +1,36 @@
+meta {
+  name: changeRole
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{vipa}}/api/v1/users/1/role
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-XSRF-TOKEN: {{csrfToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "role": "librarian"
+  }
+}
+
+docs {
+  admin only. Moves the account to `role` ("user", "librarian" or "admin"). `keyStage` is required only when a
+  "user" is the target and the account has none, and is ignored otherwise. Student fields, credentials and
+  everything else stay as they are.
+  200 returns the account. 400 for a missing or unknown role, or a missing key stage when one is required.
+  403 when the account is the caller's own ("You cannot change your own role."). 404 when the id is unknown.
+  The same role as the current one answers 200 and closes nothing; a real change closes every session of the account.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

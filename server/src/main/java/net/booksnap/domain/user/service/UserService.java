@@ -3,6 +3,7 @@ package net.booksnap.domain.user.service;
 import net.booksnap.domain.common.dto.PagedResponse;
 import net.booksnap.domain.user.Role;
 import net.booksnap.domain.user.UserStatusFilter;
+import net.booksnap.domain.user.api.dto.ChangeRoleRequest;
 import net.booksnap.domain.user.api.dto.CreateUserRequest;
 import net.booksnap.domain.user.api.dto.CreatedUserResponse;
 import net.booksnap.domain.user.api.dto.UpdateUserRequest;
@@ -20,6 +21,8 @@ public interface UserService {
     CreatedUserResponse createUser(CreateUserRequest request);
 
     AccountUpdate updateUser(Long id, UpdateUserRequest request);
+
+    RoleChange changeRole(Long id, ChangeRoleRequest request);
 
     List<String> getHouses();
 }

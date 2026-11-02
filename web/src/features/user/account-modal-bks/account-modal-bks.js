@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 import { accountModalBksStyles } from './account-modal-bks-styles.js';
 import { createUser, getHouses, updateUser } from '../../../api/user.js';
+import { KEY_STAGES, ROLES } from '../account-options.js';
 import '../../../components/modal-bks/modal-bks.js';
 import '../../../components/button-bks/button-bks.js';
 
@@ -16,21 +17,6 @@ const NAME_MAX_LENGTH = 255;
 // only between non-empty parts of the local part, which the domain alone would let through.
 const EMAIL_PATTERN =
   /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
-const ROLES = [
-  { value: 'user', label: 'Student' },
-  { value: 'librarian', label: 'Librarian' },
-  { value: 'admin', label: 'Admin' },
-];
-
-const KEY_STAGES = [
-  { value: 'pre_school', label: 'Pre-school' },
-  { value: 'ks_1', label: 'KS-1' },
-  { value: 'ks_2', label: 'KS-2' },
-  { value: 'ks_3', label: 'KS-3' },
-  { value: 'ks_4', label: 'KS-4' },
-  { value: 'ks_5', label: 'KS-5' },
-];
 
 const SEXES = [
   { value: 'female', label: 'Female' },

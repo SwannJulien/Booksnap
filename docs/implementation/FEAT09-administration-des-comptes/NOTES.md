@@ -134,3 +134,33 @@
   `web/src/features/user/account-modal-bks/account-modal-bks.js` (`updated` appelle `_resetState()` au premier rendu, où `open` passe de
   `undefined` à `false`) ; le même code est dans `HEAD`. Lu dans le code, non bissecté.
   Found: review US-03, 2026-10-28. Affects: inutile de chercher cet avertissement Lit en déboguant une vue qui monte la modale (US-04, US-05, US-06).
+
+- **Les règles « Users » de `SecurityConfig` ne couvrent qu'un segment après `/users/` : un endpoint `/api/v1/users/{id}/…` sans règle à lui tombe dans `anyRequest().authenticated()`, ouvert à tout compte connecté. `DELETE /api/v1/users/*` n'a pas de règle non plus.**
+  `server/src/main/java/net/booksnap/config/SecurityConfig.java` (`authorize`, bloc `--- Users ---` : `PUT /api/v1/users/*`).
+  Found: plan US-04, 2026-11-01. Affects: US-04 (`PUT …/role`), US-05 (`POST …/deactivate`, `…/reactivate`, la lecture des comptes à
+  annoncer), US-06 (`DELETE /users/{id}`) : sans leur ligne, un élève passe, et seule la ligne ajoutée à `ApiAuthorizationMatrixTest` le voit.
+
+- **Sous MockMvc, `user("…").roles(…)` installe un `User` de Spring, et `@AuthenticationPrincipal AuthenticatedUser` se résout alors en `null`.**
+  `server/src/test/java/net/booksnap/config/ApiAuthorizationMatrixTest.java` (`call` + `user("test@booksnap.net")`),
+  `server/src/test/java/net/booksnap/domain/user/api/UserTest.java` (`admin()`) ; le modèle d'un vrai principal est
+  `AuthControllerChangePasswordTest.principal` (`new AuthenticatedUser(user, "$2a$10$irrelevant")`).
+  Found: plan US-04, 2026-11-01. Affects: le refus « jamais sur son propre compte » de US-04, US-05 et US-06 doit tolérer un principal `null`
+  (sinon la matrice et `UserTest` répondent `500`), et son test doit passer `user(new AuthenticatedUser(…))` avec l'id du compte visé.
+
+- **Lancer le backend e2e à la main (`run-e2e-backend.sh`) ne charge pas les comptes e2e : toute connexion répond « Bad credentials ».**
+  Les rôles et mots de passe viennent de `global-setup.js` (`load-dev-fixtures.sh`, puis `load-e2e-accounts.sh` avec `BOOKSNAP_E2E_PASSWORD`), que seul
+  Playwright exécute ; le backend démarre sur une base vide de comptes (« No admin account exists… »).
+  Found: build US-04, 2026-11-01. Affects: la vérification de bout en bout de US-05 et US-06, quand on la joue avec un script Playwright jetable
+  sur `:5180` : lancer `node -e "import('./test/e2e/support/global-setup.js').then(m => m.default())"` depuis `web/` une fois le backend prêt.
+
+- **Un `vite --port 5180` lancé à la main (`--strictPort`) empêche `npm run test:e2e` de démarrer.**
+  `web/playwright.config.js` (`reuseExistingServer: false`) et `web/test/e2e/support/harness.js` (`FRONTEND_PORT = 5180`, `BACKEND_PORT = 8180` en dur) ;
+  le message est `Process from config.webServer was not able to start`, sans nommer le port.
+  Found: build US-04, 2026-11-01. Affects: avant tout `npm run test:e2e`, vérifier `ss -ltnp | grep -E ':(5180|8180)'` ; ne pas tuer le processus
+  d'un autre sans demander.
+
+- **`UserResponse.from(user, hasPassword)` n'a plus de forme à un argument ; `UserServiceImpl.toResponse(user)` calcule `hasPassword` pour un compte,
+  `findUserIdsWithProvider` pour une page.**
+  `server/src/main/java/net/booksnap/domain/user/service/UserServiceImpl.java`, `AuthIdentityRepository` (`existsByUserIdAndProvider`).
+  Found: build US-04, 2026-11-01. Affects: US-05 (`deactivate` / `reactivate` renvoient un compte) : passer par `toResponse`, sans quoi `hasPassword` serait
+  faux ; une nouvelle liste de comptes doit grouper la requête comme `getUsers`, pas la faire par ligne.

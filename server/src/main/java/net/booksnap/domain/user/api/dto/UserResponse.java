@@ -14,9 +14,10 @@ public record UserResponse(
         KeyStage keyStage,
         String house,
         String parentEmail,
-        String sex
+        String sex,
+        boolean hasPassword
 ) {
-    public static UserResponse from(User user) {
+    public static UserResponse from(User user, boolean hasPassword) {
         return new UserResponse(
                 user.getId(),
                 user.getFirstName(),
@@ -27,6 +28,7 @@ public record UserResponse(
                 user.getKeyStage(),
                 user.getHouse(),
                 user.getParentEmail(),
-                user.getSex());
+                user.getSex(),
+                hasPassword);
     }
 }

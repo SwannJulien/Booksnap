@@ -1,6 +1,9 @@
 package net.booksnap.domain.user.api;
 
 import com.jayway.jsonpath.JsonPath;
+import net.booksnap.domain.auth.service.AuthenticatedUser;
+import net.booksnap.domain.user.Role;
+import net.booksnap.domain.user.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +60,8 @@ class UserTest {
     private static final String EDITED_EMAIL = "us03.edited@booksnap.test";
     private static final String OTHER_EMAIL = "us03.other@booksnap.test";
     private static final String STAFF_EMAIL = "us03.staff@booksnap.test";
+    private static final String ROLE_EMAIL = "us04.account@booksnap.test";
+    private static final String OWN_ROLE_MESSAGE = "You cannot change your own role.";
     private static final String STUDENT_RECORD =
             "Clara|Dupont|%s|ks_1|Picasso|us03.parent.original@booksnap.test|female";
 
@@ -212,7 +217,7 @@ class UserTest {
 
         for (String body : List.of(list, single)) {
             assertThat(body).doesNotContain(temporaryPassword);
-            assertThat(body.toLowerCase()).doesNotContain("password").doesNotContain("hash");
+            assertThat(body.toLowerCase()).doesNotContain("temporarypassword").doesNotContain("hash");
             assertThat(body).doesNotContain("$2");
         }
     }
@@ -484,6 +489,132 @@ class UserTest {
                 .andExpect(status().isBadRequest());
 
         assertThat(accountRecord(id)).isEqualTo(STUDENT_RECORD.formatted(EDITED_EMAIL));
+    }
+
+    @Test
+    @DisplayName("US-04: the API refuses to demote to student without a key stage")
+    void refusesDemotionToStudentWithoutAKeyStage() throws Exception {
+        String id = insertAccount(ROLE_EMAIL, "librarian");
+
+        changeRole(admin(), id, "{\"role\": \"user\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").isString());
+
+        assertThat(roleOf(id)).isEqualTo("librarian");
+    }
+
+    @Test
+    @DisplayName("US-04: the student information comes back with the role")
+    void studentInformationComesBackWithTheRole() throws Exception {
+        String id = insertStudent(ROLE_EMAIL);
+
+        changeRole(admin(), id, "{\"role\": \"librarian\"}")
+                .andExpect(status().isOk());
+        changeRole(admin(), id, "{\"role\": \"user\"}")
+                .andExpect(status().isOk());
+
+        assertThat(accountRecord(id)).isEqualTo(STUDENT_RECORD.formatted(ROLE_EMAIL));
+    }
+
+    @Test
+    @DisplayName("US-04: an unknown role or an unknown account [superuser]")
+    void anUnknownRoleIsABadRequest() throws Exception {
+        String id = insertStudent(ROLE_EMAIL);
+
+        changeRole(admin(), id, "{\"role\": \"superuser\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").isString())
+                .andExpect(jsonPath("$.path").value(USERS + "/" + id + "/role"));
+
+        assertThat(roleOf(id)).isEqualTo("user");
+    }
+
+    @Test
+    @DisplayName("US-04: an unknown role or an unknown account [absent]")
+    void anUnknownAccountIsNotFound() throws Exception {
+        changeRole(admin(), ABSENT_ID, "{\"role\": \"librarian\"}")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").isString())
+                .andExpect(jsonPath("$.path").value(USERS + "/" + ABSENT_ID + "/role"));
+    }
+
+    @ParameterizedTest(name = "{displayName} [{0}]")
+    @ValueSource(strings = {"LIBRARIAN", "USER"})
+    @DisplayName("US-04: only the administrator changes a role")
+    void onlyTheAdministratorChangesARole(String role) throws Exception {
+        String id = insertStudent(ROLE_EMAIL);
+
+        changeRole(user("test@booksnap.net").roles(role), id, "{\"role\": \"admin\"}")
+                .andExpect(status().isForbidden());
+
+        assertThat(roleOf(id)).isEqualTo("user");
+    }
+
+    @Test
+    @DisplayName("US-04: an administrator cannot change their own role (API)")
+    void anAdministratorCannotChangeTheirOwnRole() throws Exception {
+        String id = insertAccount(ROLE_EMAIL, "admin");
+        User account = new User();
+        account.setId(Long.valueOf(id));
+        account.setEmail(ROLE_EMAIL);
+        account.setRole(Role.admin);
+
+        changeRole(user(new AuthenticatedUser(account, "$2a$10$irrelevant")), id, "{\"role\": \"librarian\"}")
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.message").value(OWN_ROLE_MESSAGE));
+
+        assertThat(roleOf(id)).isEqualTo("admin");
+    }
+
+    @Test
+    @DisplayName("US-04: the list says whether an account has a password and never exposes the hash")
+    void theListSaysWhetherAnAccountHasAPasswordWithoutExposingTheHash() throws Exception {
+        String withPassword = "us04.with.password@booksnap.test";
+        String withoutPassword = "us04.without.password@booksnap.test";
+        String hash = passwordEncoder.encode("us04-password-123");
+        String idWithPassword = insertAccount(withPassword, "librarian");
+        insertAccount(withoutPassword, "librarian");
+        jdbcTemplate.update(
+                "INSERT INTO auth_identity (user_id, provider, password_hash) VALUES (?, 'local', ?)",
+                Long.valueOf(idWithPassword), hash);
+
+        String bodyWith = mockMvc.perform(get(USERS).param("q", withPassword).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].hasPassword").value(true))
+                .andReturn().getResponse().getContentAsString();
+        String bodyWithout = mockMvc.perform(get(USERS).param("q", withoutPassword).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].hasPassword").value(false))
+                .andReturn().getResponse().getContentAsString();
+
+        for (String body : List.of(bodyWith, bodyWithout)) {
+            assertThat(body).doesNotContain("passwordHash").doesNotContain(hash).doesNotContain("$2");
+        }
+    }
+
+    private ResultActions changeRole(RequestPostProcessor principal, String id, String json) throws Exception {
+        return mockMvc.perform(put(USERS + "/" + id + "/role")
+                .with(principal)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
+    }
+
+    private String insertAccount(String email, String role) {
+        jdbcTemplate.update(
+                "INSERT INTO users (first_name, last_name, email, role) VALUES ('Paul', 'Girard', ?, ?::user_role)",
+                email, role);
+        return idOf(email);
+    }
+
+    private String roleOf(String id) {
+        return jdbcTemplate.queryForObject("SELECT role::text FROM users WHERE id = ?", String.class, Long.valueOf(id));
     }
 
     private static Stream<Arguments> invalidUpdates() {
