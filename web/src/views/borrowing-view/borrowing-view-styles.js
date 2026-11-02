@@ -129,13 +129,18 @@ export const borrowingView = [
     input[name='search'] {
       background-color: var(--clr-main-dark);
       color: var(--clr-text-light);
+      background-image: url('../../../assets/search.svg');
+      background-repeat: no-repeat;
+      background-position: left 10px center;
+      background-size: 26px;
+      padding-left: 40px;
       width: min(24rem, 100%);
       box-sizing: border-box;
 
       @media (max-width: 56.25rem) {
         flex: 1 0 100%;
         width: 100%;
-        padding: 1rem;
+        padding: 1rem 0 1rem 40px;
       }
     }
 

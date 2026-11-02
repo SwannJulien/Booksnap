@@ -36,7 +36,27 @@ export const usersView = css`
     box-sizing: border-box;
   }
 
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url('../../../assets/arrow_down.svg');
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 26px;
+    padding-right: 36px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   input[name='search'] {
+    background-image: url('../../../assets/search.svg');
+    background-repeat: no-repeat;
+    background-position: left 10px center;
+    background-size: 26px;
+    padding-left: 40px;
     width: min(24rem, 100%);
 
     @media (max-width: 56.25rem) {
